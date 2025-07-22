@@ -113,3 +113,6 @@ datagen:
 
 # Additional kwargs when calling tokenizer.apply_chat_template
 apply_chat_template_kwargs: {}
+# Sglang does not support video data.
+# If you want to use video data, set this to True for sglang that manually set video data to image key.
+sglang_video: False

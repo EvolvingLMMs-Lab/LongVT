@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "Video Tools MCP Server": {
+      "command": "python",
+      "args": ["examples/video_tools/mcp_server.py"]
+    }
+  }
+}

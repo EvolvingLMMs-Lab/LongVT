@@ -26,6 +26,7 @@ import numpy as np
 import torch
 from omegaconf import DictConfig, ListConfig
 from torch.utils.data import Dataset
+from torchvision.transforms.functional import to_pil_image
 from transformers import PreTrainedTokenizer, ProcessorMixin
 
 import verl.utils.torch_functional as verl_F
@@ -117,6 +118,7 @@ class RLHFDataset(Dataset):
         self.filter_prompts = config.get("filter_prompts", True)
         self.serialize_dataset = False
         self.return_multi_modal_inputs = config.get("return_multi_modal_inputs", True)
+        self.sglang_video = config.get("sglang_video", False)
 
         self._download()
         self._read_files_and_tokenize()
@@ -253,12 +255,38 @@ class RLHFDataset(Dataset):
 
                 # due to the video key is "video" instead of "videos" in vllm, we need to use "video" here
                 # link: https://github.com/vllm-project/vllm/blob/3c545c0c3b98ee642373a308197d750d0e449403/vllm/multimodal/parse.py#L205
-                multi_modal_data["video"] = [video.numpy() for video in videos]
+                if self.sglang_video:
+                    image_list = [to_pil_image(frame) for video in videos for frame in video]
+                    multi_modal_data["image"] = image_list
+                    new_messages = []
+                    for message in messages:
+                        new_content = []
+                        role = message["role"]
+                        video_count = 0
+                        for content in message["content"]:
+                            if content["type"] == "video":
+                                for i in range(videos[video_count].shape[0]):
+                                    new_content.append({"type": "image"})
+                            else:
+                                new_content.append(content)
+                        new_messages.append({"role": role, "content": new_content})
+                    messages = new_messages
+                else:
+                    multi_modal_data["video"] = [video.numpy() for video in videos]
 
             model_inputs = self.processor(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
+            if self.sglang_video:
+                model_inputs["image_grid_thw"] = model_inputs.pop("video_grid_thw", None)
+                model_inputs["pixel_values"] = model_inputs.pop("pixel_values_videos", None)
 
             input_ids = model_inputs.pop("input_ids")
             attention_mask = model_inputs.pop("attention_mask")
+            if self.sglang_video:
+                image_tokens = self.processor.image_token
+                video_tokens = self.processor.video_token
+                image_tokens_id = self.processor.tokenizer.convert_tokens_to_ids(image_tokens)
+                video_tokens_id = self.processor.tokenizer.convert_tokens_to_ids(video_tokens)
+                input_ids[input_ids == video_tokens_id] = image_tokens_id
 
             if "second_per_grid_ts" in model_inputs:
                 model_inputs.pop("second_per_grid_ts")

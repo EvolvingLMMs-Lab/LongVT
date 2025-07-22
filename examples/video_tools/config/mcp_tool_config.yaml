@@ -1,0 +1,11 @@
+tools:
+  - class_name: custom_tools.video_tools.VideoTools
+    config:
+      rate_limit: 120
+      timeout: 120
+      type: mcp
+    mcp:
+      mcp_servers_config_path: examples/video_tools/config/mcp_server.json
+      # optional
+      tool_selected_list: 
+        - crop_video
