@@ -144,23 +144,34 @@ def compute_score(
     Returns:
         dict: A dictionary containing the computed score and other metrics.
     """
-    format_score = 0.1
-    format_reward_score = format_reward(solution_str)
-    if not isinstance(ground_truth, str):
-        ground_truth = str(ground_truth)
+    score_dict = {}
+    if data_source in ["vstar", "vl_agent", "chart"]:
+        from . import vl_agent
 
-    extracted_answer = extract_anwser_tag(solution_str).strip()
-    predict_str = simple_parse(extracted_answer)
-    gt = simple_parse(ground_truth)
+        score = vl_agent.compute_score(solution_str, ground_truth, extra_info)
+        score_dict["score"] = score
+    elif data_source in ["thinklite_eureka", "xince"]:
+        from . import vl_agent
 
-    acc_score = relax_exact_match(predict_str, gt)
-    score = (1.0 - format_score) * acc_score + format_score * format_reward_score
-    score_dict = {
-        "score": score,
-        "acc_score": acc_score,
-        "format_reward_score": format_reward_score,
-        "predict_str": predict_str,
-        "ground_truth": gt,
-    }
+        score = vl_agent.compute_score_math(solution_str, ground_truth, extra_info)
+        score_dict["score"] = score
+    else:
+        format_score = 0.1
+        format_reward_score = format_reward(solution_str)
+        if not isinstance(ground_truth, str):
+            ground_truth = str(ground_truth)
+
+        extracted_answer = extract_anwser_tag(solution_str).strip()
+        predict_str = simple_parse(extracted_answer)
+        gt = simple_parse(ground_truth)
+
+        acc_score = relax_exact_match(predict_str, gt)
+        score = (1.0 - format_score) * acc_score + format_score * format_reward_score
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+
+    score_dict["predict_str"] = solution_str
+    score_dict["ground_truth"] = ground_truth
 
     return score_dict

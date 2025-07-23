@@ -123,6 +123,7 @@ class AsyncRolloutRequest(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def initialize_request(cls, values):
+        # breakpoint()
         if not (messages := values.get("messages")):
             raise ValueError("messages is required for AsyncRolloutRequest initialization")
         if not (max_prompt_len := values.get("max_prompt_len")):
@@ -236,7 +237,7 @@ class AsyncRolloutRequest(BaseModel):
         )
         if not tokenize:
             return raw_prompt
-
+        # breakpoint()
         if isinstance(processing_class, PreTrainedTokenizer) or isinstance(processing_class, PreTrainedTokenizerFast):
             if any(len(values) > 0 for values in multi_modal_data.values()):
                 logger.warning(
@@ -414,13 +415,37 @@ class AsyncRolloutRequest(BaseModel):
     def add_tool_response_messages(
         self,
         processing_class: PreTrainedTokenizer | PreTrainedTokenizerFast | ProcessorMixin,
-        contents: list[ToolResponse],
-    ) -> None:
-        if not contents or all(content.is_empty() for content in contents):
-            return
+        contents: list[str | dict[str, Any]],
+        max_model_len: Optional[int] = None,  # 新增参数
+    ) -> bool:  # 返回是否成功添加
+        """
+        Returns:
+            bool: True if messages were added successfully, False if truncated due to length limit
+        """
+
+        if not contents:
+            return True
+
+        # 记录添加前的状态，用于可能的回滚
+        original_input_ids = self.input_ids.clone() if self.input_ids is not None else None
+        original_attention_mask = self.attention_mask.clone() if self.attention_mask is not None else None
+        original_position_ids = self.position_ids.clone() if self.position_ids is not None else None
+        original_loss_mask = self.loss_mask.clone() if self.loss_mask is not None else None
+        original_multi_modal_data = (
+            {key: val.copy() for key, val in self.multi_modal_data.items()} if self.multi_modal_data else {}
+        )
+        original_multi_modal_inputs = (
+            {key: val.clone() if isinstance(val, torch.Tensor) else val for key, val in self.multi_modal_inputs.items()}
+            if self.multi_modal_inputs
+            else {}
+        )
+        original_messages_count = len(self.messages)
+
         # We also handle the case when tool returns image
         # We require the processing of the image and video to be done at tool.execute() level
         delta_multi_modal_data = {key: [] for key in self.multi_modal_keys}
+        added_images_count = 0  # 记录新增的图像数量
+
         for content in contents:
             if content.is_text_only():
                 self.messages.append(Message(role="tool", content=content.text))
@@ -472,6 +497,71 @@ class AsyncRolloutRequest(BaseModel):
             loss_mask=False,
             new_multi_modal_inputs=multi_modal_inputs,
         )
+
+        should_rollback = False
+
+        # check if the response will be truncated
+        if max_model_len and self.input_ids is not None and self.input_ids.shape[-1] > max_model_len:
+            logger.warning(
+                f"Adding tool response would exceed max_model_len ({self.input_ids.shape[-1]} > {max_model_len}). "
+                f"Added {added_images_count} images. Attempting to truncate..."
+            )
+            should_rollback = True
+
+        # check if there are images and the response will be truncated
+        if (
+            added_images_count > 0
+            and hasattr(self, "max_response_len")
+            and self.max_response_len
+            and self.prompt_ids is not None
+        ):
+            current_response_len = self.input_ids.shape[-1] - self.prompt_ids.shape[-1]
+
+            if current_response_len > self.max_response_len:
+                logger.warning(
+                    f"Added {added_images_count} images but response would be truncated "
+                    f"(current: {current_response_len}, max: {self.max_response_len}). "
+                    f"Rolling back to prevent image token corruption."
+                )
+                should_rollback = True
+
+            # rollback
+        if should_rollback:
+            logger.warning("Rolling back all changes")
+            self._rollback_to_state(
+                original_input_ids,
+                original_attention_mask,
+                original_position_ids,
+                original_loss_mask,
+                original_multi_modal_data,
+                original_multi_modal_inputs,
+                original_messages_count,
+            )
+            return False
+
+        return True
+
+    def _rollback_to_state(
+        self,
+        original_input_ids,
+        original_attention_mask,
+        original_position_ids,
+        original_loss_mask,
+        original_multi_modal_data,
+        original_multi_modal_inputs,
+        original_messages_count,
+    ):
+        """回滚到添加tool response之前的状态"""
+        self.input_ids = original_input_ids
+        self.attention_mask = original_attention_mask
+        self.position_ids = original_position_ids
+        self.loss_mask = original_loss_mask
+        self.multi_modal_data = original_multi_modal_data
+        self.multi_modal_inputs = original_multi_modal_inputs
+
+        # 回滚messages
+        while len(self.messages) > original_messages_count:
+            self.messages.pop()
 
     def update_metrics(self, metrics: Any, tool_id: str) -> None:
         """
@@ -563,6 +653,8 @@ class AsyncRolloutRequest(BaseModel):
 
         self.response_ids = self.input_ids[..., self.prompt_ids.shape[-1] :]
 
+        # self.tokenization_sanity_check_mode = TokenizationSanityCheckModeEnum.DISABLE # bug
+        # breakpoint()
         if self.tokenization_sanity_check_mode != TokenizationSanityCheckModeEnum.DISABLE:
             # When there is a diff, we log the diffs with diff_surrounding_chars context
             diff_surrounding_chars = 10

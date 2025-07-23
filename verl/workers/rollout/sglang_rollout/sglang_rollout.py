@@ -810,6 +810,7 @@ class SGLangRollout(BaseRollout):
         finish_reason_type = None
         output = None
 
+        current_tool_call = 0  # the tool call times
         current_turns = 0
         user_turns = 0
         user_turn_rewards = []
@@ -847,6 +848,7 @@ class SGLangRollout(BaseRollout):
         request_sampling_params.update(kwargs)
 
         while current_turns < self.config.multi_turn.max_assistant_turns:
+            # breakpoint()
             if _req.state == AsyncRolloutRequestStateEnum.PENDING:
                 await self._handle_pending_state(_req)
                 _req.state = AsyncRolloutRequestStateEnum.RUNNING
@@ -855,6 +857,9 @@ class SGLangRollout(BaseRollout):
                     parsed_tool_calls = _req.messages[-1].tool_calls
                     if self.config.skip_tokenizer_init:
                         _req.messages[-1].tool_calls = None
+                    max_tools_per_turn = 5  # max tool call per turn
+                    if len(parsed_tool_calls) >= max_tools_per_turn:
+                        parsed_tool_calls = parsed_tool_calls[:max_tools_per_turn]
                     tool_call_results = await asyncio.gather(
                         *[
                             self._tool_map[tool_call.function.name].execute(
@@ -865,12 +870,46 @@ class SGLangRollout(BaseRollout):
                             for tool_call in parsed_tool_calls
                         ]
                     )
-                    _req.add_tool_response_messages(self.processing_class, [resp for resp, _, _ in tool_call_results])
-                    for tool_call, (resp, reward, metrics) in zip(parsed_tool_calls, tool_call_results, strict=True):
+
+                    # _req.add_tool_response_messages(self.processing_class, [resp for resp, _, _ in tool_call_results])
+                    # for tool_call, (resp, reward, metrics) in zip(parsed_tool_calls, tool_call_results):
+                    #     _req.update_metrics(metrics, tool_call.function.name)
+
+                    # if len(_req.input_ids) >= self.config.max_model_len:
+                    #     finish_reason_type = FinishReasonTypeEnum.STOP
+                    #     break
+
+                    # ## tool call times
+                    # current_tool_call += len(parsed_tool_calls)
+                    # if current_tool_call >= self.config.multi_turn.max_tool_call:
+                    #     finish_reason_type = FinishReasonTypeEnum.STOP
+                    #     _req.state = AsyncRolloutRequestStateEnum.COMPLETED
+                    #     break
+
+                    # _req.state = AsyncRolloutRequestStateEnum.RUNNING
+
+                    # breakpoint()
+                    success = _req.add_tool_response_messages(
+                        self.processing_class,
+                        [resp for resp, _, _ in tool_call_results],
+                        max_model_len=self.config.max_model_len,  # 传入长度限制
+                    )
+
+                    for tool_call, (resp, reward, metrics) in zip(parsed_tool_calls, tool_call_results, strict=False):
                         _req.update_metrics(metrics, tool_call.function.name)
-                    if len(_req.input_ids) >= self.config.max_model_len:
-                        finish_reason_type = FinishReasonTypeEnum.STOP
+
+                    if not success:
+                        finish_reason_type = FinishReasonTypeEnum.LENGTH
+                        _req.state = AsyncRolloutRequestStateEnum.COMPLETED
                         break
+
+                    ## tool call times
+                    current_tool_call += len(parsed_tool_calls)
+                    if current_tool_call >= self.config.multi_turn.max_tool_call:
+                        finish_reason_type = FinishReasonTypeEnum.STOP
+                        _req.state = AsyncRolloutRequestStateEnum.COMPLETED
+                        break
+
                     _req.state = AsyncRolloutRequestStateEnum.RUNNING
                 else:
                     raise ValueError(f"Unexpected tool calling last message state: {_req.messages[-1]}")
@@ -1074,6 +1113,8 @@ class SGLangRollout(BaseRollout):
             for tool_schema in _req.tool_schemas:
                 tool = self._tool_map[tool_schema.function.name]
                 create_kwargs = _req.tools_kwargs[tool.name].get("create_kwargs", {})
+                if tool.name == "image_zoom_in_tool":  # input the image
+                    create_kwargs["images"] = _req.multi_modal_data
                 tool_creation_coroutines.append(tool.create(_req.request_id, **create_kwargs))
             tool_creation_results = await asyncio.gather(*tool_creation_coroutines)
             _req.add_tool_response_messages(
