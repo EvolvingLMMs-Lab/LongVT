@@ -17,9 +17,10 @@ import json
 import logging
 import os
 from io import BytesIO
+from typing import Optional
+from uuid import uuid4
 
 from PIL import Image
-from typing import Optional
 
 from verl.tools.mcp_base_tool import MCPBaseTool
 
@@ -44,7 +45,7 @@ class VideoTools(MCPBaseTool):
 
     async def execute(self, instance_id, parameters, **kwargs):
         try:
-            self._instance_dict[instance_id]["tool_call_count"] += 1 # tool call count
+            self._instance_dict[instance_id]["tool_call_count"] += 1  # tool call count
             result_text, metadata = await self._call_tool(instance_id, parameters)
             image_list = metadata["images"]
             from verl.utils.dataset.vision_utils import process_image
@@ -59,7 +60,7 @@ class VideoTools(MCPBaseTool):
             logger.error(f"[MCPBaseTool] Execution failed: {e}")
             return error_result, 0.0, {"error": str(e)}
 
-    # tool call count        
+    # tool call count
     async def calc_reward(self, instance_id: str, **kwargs) -> str:
         return self._instance_dict[instance_id]["tool_call_count"]
 
@@ -75,5 +76,3 @@ class VideoTools(MCPBaseTool):
 
     async def release(self, instance_id: str, **kwargs) -> None:
         self._instance_dict.pop(instance_id, None)
-     
-  

@@ -1348,14 +1348,14 @@ class RayPPOTrainer:
                         tool_call_counts = []
                         for item in tool_call:
                             # 获取除了 'user_turn_rewards' 之外的所有工具字段
-                            tool_fields = {k: v for k, v in item.items() if k != 'user_turn_rewards'}
-                            
-                            if tool_fields: 
+                            tool_fields = {k: v for k, v in item.items() if k != "user_turn_rewards"}
+
+                            if tool_fields:
                                 # the first tool call
                                 count = next(iter(tool_fields.values()))
                                 # all tool calls
                                 # count = sum(tool_fields.values())
-                                if isinstance(count, int): 
+                                if isinstance(count, int):
                                     tool_call_counts.append(count if count < 5 else 5)  # max_tool_call
 
                         if tool_call_counts:

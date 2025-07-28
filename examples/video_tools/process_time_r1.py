@@ -95,13 +95,14 @@ def main():
     #     r"The reasoning process MUST BE enclosed within <think> </think> tags. "
     #     r"The final answer MUST BE put in <answer> </answer> tags."
     # )
-    
+
     # tool use instruction
-    instruction_following = (  
+    instruction_following = (
         r"You FIRST think about the reasoning process as an internal monologue and then provide the final answer. "
-        r"Think first, call **crop_video** if needed, then answer. Format strictly as:  <think>...</think>  <tool_call>...</tool_call> (if tools needed)  <answer>...</answer> "
+        r"Think first, call **crop_video** if needed, then answer. Format strictly as:  <think>...</think>  "
+        r"<tool_call>...</tool_call> (if tools needed)  <answer>...</answer> "
     )
-   
+
     # with Pool(processes=16) as pool:
     # # Prepare video paths for processing
     # video_paths = [

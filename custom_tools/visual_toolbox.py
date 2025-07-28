@@ -75,7 +75,7 @@ class VisualToolBox(BaseTool):
         self._instance_dict[instance_id] = {
             "images": kwargs["images"]["image"],
             "tool_call_count": 0,
-            }
+        }
         return instance_id, None
 
     def validate_bbox(self, left, top, right, bottom):
@@ -138,7 +138,7 @@ class VisualToolBox(BaseTool):
             # img = Image.open(image_path)
 
             cropped_img = img.crop(bbox)
-            # cropped_img = cropped_img.resize((28, 28), Image.BICUBIC) 
+            # cropped_img = cropped_img.resize((28, 28), Image.BICUBIC)
             current_image = cropped_img
 
             return {"image": [current_image]}, 0, {}

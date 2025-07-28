@@ -34,6 +34,7 @@ class ToolType(Enum):
 
 async def initialize_mcp_tool(tool_cls, tool_config) -> list:
     from verl.tools.utils.mcp_clients.McpClientManager import ClientManager
+
     tool_list = []
     mcp_servers_config_path = tool_config.mcp.mcp_servers_config_path
     tool_selected_list = tool_config.mcp.tool_selected_list if "tool_selected_list" in tool_config.mcp else None
