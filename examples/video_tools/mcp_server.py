@@ -16,6 +16,7 @@ import base64
 from io import BytesIO
 from typing import Annotated
 
+
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent
 from pydantic import Field
