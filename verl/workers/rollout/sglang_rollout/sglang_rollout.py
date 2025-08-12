@@ -841,7 +841,7 @@ class SGLangRollout(BaseRollout):
             elif _req.state == AsyncRolloutRequestStateEnum.TOOL_CALLING:
                 if _req.messages[-1].tool_calls is not None:
                     parsed_tool_calls = _req.messages[-1].tool_calls
-                    max_tools_per_turn = 2  # max tool call per turn/config input?
+                    max_tools_per_turn = 5  # max tool call per turn/config input?
                     if len(parsed_tool_calls) >= max_tools_per_turn:
                         parsed_tool_calls = parsed_tool_calls[:max_tools_per_turn]
                     tool_call_results = await asyncio.gather(
