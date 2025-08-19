@@ -6,6 +6,7 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
 
+import torch
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,20 +26,19 @@ def parse_args():
     parser.add_argument("--server", type=str, required=False, default="openai")
     parser.add_argument("--fps", type=int, required=False, default=1)
     parser.add_argument("--limit", type=int, required=False, default=None)
+    parser.add_argument("--shard-size", type=int, required=False, default=1)
+    parser.add_argument("--shard-index", type=int, required=False, default=0)
     return parser.parse_args()
 
 
 def create_messages(video_path, start_time, end_time, fps):
     frames = process_video(video_path, start_time=start_time, end_time=end_time, fps=fps)
-    frames = [encode_image(to_pil_image(frame)) for frame in frames]
+    frames = frames.to(torch.uint8)
+    frame_pil = [to_pil_image(frame) for frame in frames]
+    frames = [encode_image(frame) for frame in frame_pil]
     messages = [{"role": "user", "content": [{"type": "text", "text": VIDEO_CAPTION_PROMPT}]}]
     for frame in frames:
-        messages.append(
-            {
-                "role": "user",
-                "content": [{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{frame}"}}],
-            }
-        )
+        messages[0]["content"].append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{frame}"}})
     return messages
 
 
@@ -118,7 +118,13 @@ def main():
     if args.limit is not None:
         input_data = input_data[: args.limit]
 
-    with ProcessPoolExecutor(max_workers=cpu_count() // 2) as executor:
+    if args.shard_size > 1:
+        input_data = input_data[args.shard_index :: args.shard_size]
+        output_path = f"{args.output_path.replace('.json', f'_shard_{args.shard_index}.json')}"
+    else:
+        output_path = args.output_path
+
+    with ProcessPoolExecutor(max_workers=cpu_count() - 8) as executor:
         futures = []
         results = []
         info_list = []
@@ -161,7 +167,7 @@ def main():
     # Sort results by video_path and start_time
     results.sort(key=lambda x: (x["video_path"], x["start_time"]))
 
-    with open(args.output_path, "w") as f:
+    with open(output_path, "w") as f:
         json.dump(results, f, indent=4)
 
 
