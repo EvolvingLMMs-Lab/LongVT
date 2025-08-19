@@ -20,6 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent
 from pydantic import Field
 from qwen_vl_utils import fetch_video
+import torch
 from torchvision.transforms.functional import to_pil_image
 
 app = FastMCP("Video Tools MCP Server", "0.1.0")
@@ -54,6 +55,7 @@ def crop_video(
         "video_end": end_time,
     }
     video_frames = fetch_video(video_ele)
+    video_frames = video_frames.to(torch.uint8)
     images = [to_pil_image(frame) for frame in video_frames]
     # Encode images to base64
     image_contents = []
