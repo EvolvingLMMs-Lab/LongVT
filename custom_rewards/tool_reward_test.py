@@ -153,7 +153,7 @@ def compute_score(
     """
     # breakpoint()
     score_dict = {}
-    if data_source in ["vstar", "vl_agent", "chart", "longvideo-reason", "hacs", "ego4d_naq"]:
+    if data_source in ["vstar", "vl_agent", "chart", "longvideo-reason", "hacs", "ego4d_naq", "longvt"]:
         from custom_rewards import vl_agent_test
 
         score, acc_score, format_reward_score, *extra = vl_agent_test.compute_score(
@@ -166,6 +166,8 @@ def compute_score(
 
         if kwargs.get("tool_use_reward", False) and extra:
             score_dict["tool_reward_score"] = extra[0]
+        elif (kwargs.get("use_time_reward", False) or kwargs.get("use_iou_reward", False)) and extra:
+            score_dict["time_reward_score"] = extra[0]
     elif data_source in ["thinklite_eureka", "xince"]:
         from custom_rewards import vl_agent_test
 
@@ -173,6 +175,31 @@ def compute_score(
         score_dict["score"] = score
         score_dict["acc_score"] = acc_score
         score_dict["format_reward_score"] = format_reward_score
+    elif data_source in ["longvt-val"]:
+        from custom_rewards import vl_agent_test
+
+        # val score
+        score, acc_score, format_reward_score, *extra = vl_agent_test.compute_score(
+            solution_str, ground_truth, extra_info, **kwargs
+        )
+        score_dict["score"] = acc_score
+    elif data_source in ["videor1"]:
+        from custom_rewards import vl_agent_test
+
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_videor1(
+            solution_str, ground_truth, extra_info, **kwargs
+        )
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+
+        # Add dummy values for optional reward fields to maintain batch consistency
+        # Use -1.0 as a special dummy value (videor1 doesn't support these rewards)
+        # This maintains tensor compatibility while clearly marking unsupported features
+        if kwargs.get("tool_use_reward", False):
+            score_dict["tool_reward_score"] = -1.0  # videor1 doesn't have tool rewards
+        elif kwargs.get("use_time_reward", False) or kwargs.get("use_iou_reward", False):
+            score_dict["time_reward_score"] = -1.0  # videor1 doesn't have time/iou rewards
     elif data_source in ["time-r1"]:
         from custom_rewards import vl_agent_test
 

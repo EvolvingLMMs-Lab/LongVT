@@ -58,6 +58,10 @@ actor_rollout_ref:
       reshard_after_forward: true
       fsdp_size: -1
       forward_prefetch: false
+      mixed_precision:
+        param_dtype: bf16
+        reduce_dtype: fp32
+        buffer_dtype: fp32
   ref:
     strategy: ${actor_rollout_ref.actor.strategy}
     use_torch_compile: ${oc.select:actor_rollout_ref.actor.use_torch_compile,true}
@@ -71,6 +75,10 @@ actor_rollout_ref:
       forward_prefetch: false
       wrap_policy:
         min_num_params: 0
+      mixed_precision:
+        param_dtype: bf16
+        reduce_dtype: fp32
+        buffer_dtype: fp32
     ulysses_sequence_parallel_size: ${oc.select:actor_rollout_ref.actor.ulysses_sequence_parallel_size,1}
     entropy_from_logits_with_chunking: false
     entropy_checkpointing: false
@@ -231,6 +239,7 @@ data:
   return_raw_chat: false
   return_full_prompt: false
   shuffle: true
+  seed: 42
   dataloader_num_workers: 8
   validation_shuffle: false
   filter_overlong_prompts: false
@@ -279,6 +288,10 @@ critic:
         min_num_params: 0
       fsdp_size: -1
       forward_prefetch: false
+      mixed_precision:
+        param_dtype: bf16
+        reduce_dtype: fp32
+        buffer_dtype: fp32
     lora_rank: 0
     lora_alpha: 16
     target_modules: all-linear
@@ -326,6 +339,10 @@ reward_model:
       reshard_after_forward: true
       fsdp_size: -1
       forward_prefetch: false
+      mixed_precision:
+        param_dtype: bf16
+        reduce_dtype: fp32
+        buffer_dtype: fp32
   micro_batch_size: null
   micro_batch_size_per_gpu: null
   max_length: null

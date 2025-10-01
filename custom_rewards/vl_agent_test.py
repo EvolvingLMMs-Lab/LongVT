@@ -16,10 +16,12 @@ import ast
 import os
 import random
 import re
+from datetime import datetime
 
 import requests
 from math_verify import parse, verify
 from openai import OpenAI
+from rouge_score import rouge_scorer
 
 openai_api_key = "EMPTY"
 openai_api_base_list = [
@@ -41,14 +43,28 @@ for client in client_list:
 
 
 def get_chat_template():
+    #     chat_template = """
+    # Below are two answers to a question. Question is [Question], [Standard Answer] is the
+    # standard answer to the question,
+    # and [Model_answer] is the answer extracted from a model's output to this question.
+    # Determine whether these two answers are consistent.
+    # Note that [Model Answer] is consistent with [Standard Answer] whenever they are essentially the same.
+    # If the meaning is expressed in the same way, it is considered consistent, for example, 'pink' and 'it is pink'.
+    # If they are consistent, Judement is 1; if they are different, Judement is 0.
+    # Just output Judement and don't output anything else.\n\n
+    # """
     chat_template = """
 Below are two answers to a question. Question is [Question], [Standard Answer] is the standard answer to the question, 
-and [Model_answer] is the answer extracted from a model's output to this question.  
-Determine whether these two answers are consistent. 
-Note that [Model Answer] is consistent with [Standard Answer] whenever they are essentially the same. 
-If the meaning is expressed in the same way, it is considered consistent, for example, 'pink' and 'it is pink'.
-If they are consistent, Judement is 1; if they are different, Judement is 0. 
-Just output Judement and don't output anything else.\n\n
+and [Model_answer] is the answer extracted from a model's output to this question. 
+
+Judge how consistent the two answers are.
+
+Scoring rules  
+• 1    — Fully consistent: they convey the same meaning (e.g., “pink” vs. “it is pink”).  
+• 0.5 — Partially consistent: they overlap on some key points but not all.  
+• 0    — Inconsistent: they conflict or share no essential overlap.
+
+Output **only** one of the following numbers: 1, 0.5, or 0.
 """
     return chat_template
 
@@ -69,24 +85,24 @@ Judgement: 1
 """  # noqa
 
     example_3 = """
-[Question]: Is the kite brown and large?
-[Standard Answer]: Yes, the kite is brown and large.
-[Model_answer] : Yes
-Judgement: 1
+[Question]: What happens immediately after the fireworks illuminate the sky?
+[Standard Answer]: The crowd cheers loudly and waves flags.
+[Model_answer] : The crowd cheers.
+Judgement: 0.5
 """  # noqa
 
     example_4 = """
-[Question]: Are the spots on a giraffe?
-[Standard Answer]: No, the spots are on a banana.
-[Model_answer] : no
-Judgement: 1
+[Question]: What items does the waitress hand to the customer?
+[Standard Answer]: She hands over a sandwich and a cup of coffee.
+[Model_answer] : She hands over a sandwich and a cup of tea.
+Judgement: 0.5
 """  # noqa
 
     example_5 = """
-[Question]: Who is wearing pants?
-[Standard Answer]: The boy is wearing pants.
-[Model_answer] : The person in the picture is wearing pants.
-Judgement: 1
+[Question]: Where is the cat sitting when the dog first walks into the kitchen?
+[Standard Answer]: On top of the kitchen counter.
+[Model_answer] : In the kitchen, sitting on the floor near the counter.
+Judgement: 0.5
 """  # noqa
 
     example_6 = """
@@ -200,102 +216,12 @@ Judgement:"""
 
 
 def extract_answer(text):
-    """
-    从给定的文本中提取<answer></answer>标签内部的内容。
-
-    参数:
-        text (str): 包含<answer>标签的文本
-
-    返回:
-        str or None: 标签内部的内容，如果未找到则返回None。
-    """
     # 使用非贪婪模式匹配<answer>和</answer>之间的内容
     pattern = r"<answer>(.*?)</answer>"
     match = re.search(pattern, text, re.DOTALL)
     if match:
         return match.group(1).strip()
     return None
-
-
-def compute_score_think(predict_str: str, ground_truth: str, extra_info=None) -> float:
-    is_format_error = False
-    count_think_1 = predict_str.count("<think>")
-    count_think_2 = predict_str.count("</think>")
-    # there is a <think> in chat_template
-    if count_think_1 + 1 != count_think_2 or count_think_2 == 0:  # exclude the situation that <think>==</think>==0
-        is_format_error = True
-
-    count_vision_1 = predict_str.count("<tool_call>")
-    count_vision_2 = predict_str.count("</tool_call>")
-    if count_vision_1 != count_vision_2:
-        is_format_error = True
-
-    # count_vision_response_1 = predict_str.count("<tool_response>")
-    # count_vision_response_2 = predict_str.count("</tool_response>")
-    # if count_vision_response_1 != count_vision_response_2:
-    #     is_format_error = True
-
-    predict_no_think = predict_str.split("</think>")[-1].strip()
-    count_answer_1 = predict_no_think.count("<answer>")
-    count_answer_2 = predict_no_think.count("</answer>")
-    if count_answer_1 != count_answer_2 or count_answer_1 == 0:  ##
-        is_format_error = True
-
-    if count_answer_1 == 0 or count_answer_2 == 0:
-        answer_text = ""
-    else:
-        answer_text = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
-
-    # skip the case that the answer is empty
-    if answer_text == "":
-        acc_reward = 0.0
-    else:
-        question_text = extra_info["question"]
-        full_prompt = get_prompt(answer_text, ground_truth, question_text)
-
-        client_idx = random.randint(0, len(client_list) - 1)
-        client = client_list[client_idx]
-        model_name = model_name_list[client_idx]
-
-        chat_response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": full_prompt},
-            ],
-            seed=random.randint(0, 1000000),
-            temperature=0.3,
-        )
-        response = chat_response.choices[0].message.content.strip()
-        # print(response)
-        if "Judgement:" in response:
-            response = response.split("Judgement:")[-1].strip()
-            if "1" in response:
-                acc_reward = 1.0
-            elif "0" in response:
-                acc_reward = 0.0
-            else:
-                print(f" [WARNING] resp format error {response=}")
-                acc_reward = 0.0
-        else:
-            if response == "1":
-                acc_reward = 1.0
-            elif response == "0":
-                acc_reward = 0.0
-            else:
-                print(f" [WARNING] resp format error {response=}")
-                acc_reward = 0.0
-
-    # Penalize for model trying to predict longer answer to hack llm-as-judge
-    if len(answer_text) >= 1000:
-        acc_reward = 0.0
-        is_format_error = True
-
-    # tool_reward_base = 1.0 if count_vision_1 > 0 else 0.0
-    # tool_reward = 1.0 if count_vision_response_1 > 0 and acc_reward > 0.5 else 0.0
-    format_reward = 0.0 if is_format_error else 1.0
-
-    return 0.8 * acc_reward + 0.2 * format_reward, acc_reward, format_reward
 
 
 def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs) -> float:
@@ -374,11 +300,12 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
             temperature=0.3,
         )
         response = chat_response.choices[0].message.content.strip()
-        # print(response)
         if "Judgement:" in response:
             response = response.split("Judgement:")[-1].strip()
             if "1" in response:
                 acc_reward = 1.0
+            elif "0.5" in response:
+                acc_reward = 0.5
             elif "0" in response:
                 acc_reward = 0.0
             else:
@@ -387,6 +314,8 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
         else:
             if response == "1":
                 acc_reward = 1.0
+            elif response == "0.5":
+                acc_reward = 0.5
             elif response == "0":
                 acc_reward = 0.0
             else:
@@ -401,88 +330,125 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
     format_reward = 0.0 if is_format_error else 1.0
 
     tool_use_reward = kwargs.get("tool_use_reward", False)
+    use_time_reward = kwargs.get("use_time_reward", False)
+    use_iou_reward = kwargs.get("use_iou_reward", False)
     use_new_reward = kwargs.get("use_new_reward", False)
 
     tool_reward = 0.0
     if tool_use_reward:
         count_vision_response_1 = predict_str.count("<tool_response>")
-        tool_reward = 1.0 if count_vision_response_1 > 0 and acc_reward > 0.5 else 0.0
+        tool_reward = 1.0 if count_vision_response_1 > 0 and acc_reward >= 0.5 else 0.0
         return (1.0 * acc_reward + 1.0 * format_reward + 1.0 * tool_reward, acc_reward, format_reward, tool_reward)
+    if use_time_reward:
+        count_vision_response_1 = predict_str.count("<tool_response>")
+        if count_vision_response_1 > 0:
+            ground_truth_time = extra_info["video_segment"]
+
+            # extract the time from the tool_response
+            time_reward = 0.0
+            try:
+                # find all tool_calls and get the last crop_video
+                tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+                tool_calls = re.findall(tool_call_pattern, predict_str, re.DOTALL)
+
+                # find the last crop_video tool call
+                last_crop_video = None
+                for tool_call in reversed(tool_calls):  # iterate from the end
+                    try:
+                        tool_data = ast.literal_eval(tool_call.strip())
+                        if isinstance(tool_data, dict) and tool_data.get("name") == "crop_video":
+                            arguments = tool_data.get("arguments", {})
+                            if "start_time" in arguments and "end_time" in arguments:
+                                last_crop_video = (float(arguments["start_time"]), float(arguments["end_time"]))
+                                break  # found the last crop_video, exit immediately
+                    except (ValueError, SyntaxError, KeyError):
+                        continue
+
+                # calculate time reward using the last crop_video
+                if last_crop_video:
+                    pred_start, pred_end = last_crop_video
+
+                    # get the ground truth time interval
+                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                        gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
+
+                        # use recall to calculate the time reward (the same logic as compute_score_time_r1)
+                        intersection_start = max(pred_start, gt_start)
+                        intersection_end = min(pred_end, gt_end)
+                        intersection = max(0, intersection_end - intersection_start)
+
+                        gt_length = gt_end - gt_start
+                        if gt_length > 0:
+                            time_reward = intersection / gt_length
+                        else:
+                            time_reward = 1.0 if intersection > 0 else 0.0
+            except Exception:
+                time_reward = 0.0
+        else:
+            time_reward = 0.0
+
+        return (1.0 * acc_reward + 1.0 * format_reward + 1.0 * time_reward, acc_reward, format_reward, time_reward)
+
+    if use_iou_reward:
+        count_vision_response_1 = predict_str.count("<tool_response>")
+        if count_vision_response_1 > 0:
+            ground_truth_time = extra_info["video_segment"]
+
+            # extract the time from the tool_response
+            time_reward = 0.0
+            try:
+                # find all tool_calls and get the last crop_video
+                tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+                tool_calls = re.findall(tool_call_pattern, predict_str, re.DOTALL)
+
+                # find the last crop_video tool call
+                last_crop_video = None
+                for tool_call in reversed(tool_calls):  # iterate from the end
+                    try:
+                        tool_data = ast.literal_eval(tool_call.strip())
+                        if isinstance(tool_data, dict) and tool_data.get("name") == "crop_video":
+                            arguments = tool_data.get("arguments", {})
+                            if "start_time" in arguments and "end_time" in arguments:
+                                last_crop_video = (float(arguments["start_time"]), float(arguments["end_time"]))
+                                break  # found the last crop_video, exit immediately
+                    except (ValueError, SyntaxError, KeyError):
+                        continue
+
+                # calculate time reward using the last crop_video with IoU
+                if last_crop_video:
+                    pred_start, pred_end = last_crop_video
+
+                    # get the ground truth time interval
+                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                        gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
+
+                        # use IoU to calculate the time reward (the same logic as
+                        # compute_score_time_r1 with use_recall=False)
+                        intersection_start = max(pred_start, gt_start)
+                        intersection_end = min(pred_end, gt_end)
+                        intersection = max(0, intersection_end - intersection_start)
+
+                        # compute union
+                        union_start = min(pred_start, gt_start)
+                        union_end = max(pred_end, gt_end)
+                        union = union_end - union_start
+
+                        # compute IoU
+                        if union > 0:
+                            time_reward = intersection / union
+                        else:
+                            time_reward = 1.0 if intersection > 0 else 0.0
+            except Exception:
+                time_reward = 0.0
+        else:
+            time_reward = 0.0
+
+        return (1.0 * acc_reward + 1.0 * format_reward + 1.0 * time_reward, acc_reward, format_reward, time_reward)
 
     if use_new_reward:
         return (1.0 * acc_reward + 1.0 * format_reward, acc_reward, format_reward)
     else:
         return (0.8 * acc_reward + 0.2 * format_reward, acc_reward, format_reward)
-
-
-def compute_common_reasoning(predict_str: str, ground_truth: str, extra_info=None) -> float:
-    is_format_error = False
-    # predict_str = "<think>" + predict_str
-    count_think_1 = predict_str.count("<think>")
-    count_think_2 = predict_str.count("</think>")
-    if count_think_1 != count_think_2:
-        is_format_error = True
-
-    count_vision_1 = predict_str.count("<|vision_start|><|image_pad|>")
-    count_vision_2 = predict_str.count("<|image_pad|><|vision_end|>")
-    if count_vision_1 != count_vision_2:
-        is_format_error = True
-
-    predict_no_think = predict_str.split("</think>")[-1].strip()
-    count_answer_1 = predict_no_think.count("<answer>")
-    count_answer_2 = predict_no_think.count("</answer>")
-    if count_answer_1 != count_answer_2:
-        is_format_error = True
-
-    answer_text = extract_answer(
-        predict_no_think
-    )  # predict_no_think.split("<answer>")[-1].split("</answer>")[0].strip()
-    if not answer_text:
-        acc_reward = 0.0
-        is_format_error = True
-    elif len(answer_text) >= 1000:
-        acc_reward = 0.0
-        is_format_error = True
-    else:
-        question_text = extra_info["question"]
-        client_idx = random.randint(0, len(client_list) - 1)
-        client = client_list[client_idx]
-        model_name = model_name_list[client_idx]
-        full_prompt = COMMON_VERIFY_PROMPT.format(
-            query=question_text,
-            gold_ans=ground_truth,
-            pred_ans=answer_text,
-        )
-
-        acc_reward = 0.0
-        for ix in range(8):
-            chat_response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "user", "content": full_prompt},
-                ],
-                seed=random.randint(0, 1000000),
-                temperature=0.5,
-            )
-            response = chat_response.choices[0].message.content.strip()
-            judgement = response.split("## Equivalence Judgement")[-1].lower()
-            if "true" in judgement and "false" not in judgement:
-                acc_reward = 1.0
-                break
-            elif "false" in judgement and "true" not in judgement:
-                acc_reward = 0.0
-                break
-            else:
-                print(f" [ERROR] judgement format invalid: {judgement}")
-                continue
-
-    # tool_reward_base = 1.0 if count_vision_1 > 0 else 0.0
-    tool_reward = 1.0 if count_vision_1 > 0 and acc_reward > 0.5 else 0.0
-    format_reward = -1.0 if is_format_error else 0.0
-    print(
-        f"[DEBUG] tool_query={extra_info['question']}, {ground_truth=}, {answer_text=}, {acc_reward=}, {format_reward=}"
-    )
-    return 0.8 * acc_reward + 0.2 * format_reward + 1.2 * tool_reward
 
 
 def rule_math_verify(ground_truth, model_answer):
@@ -568,13 +534,6 @@ def compute_score_math(predict_str: str, ground_truth: str, extra_info=None) -> 
                 acc_reward = 1.0 if generative_verify(extra_info["question"], ground_truth, model_answer) else 0.0
 
     format_reward = 0.0 if is_format_error else 1.0
-    # print(
-    #     f"[DEBUG] math_query={extra_info['question']}, "
-    #     f"{ground_truth=}, "
-    #     f"{model_answer=}, "
-    #     f"{acc_reward=}, "
-    #     f"{format_reward=}"
-    # )
 
     return 0.8 * acc_reward + 0.2 * format_reward, acc_reward, format_reward
 
@@ -659,91 +618,214 @@ def compute_score_time_r1(predict_str: str, ground_truth: str, extra_info=None, 
     return 0.8 * acc_reward + 0.2 * format_reward, acc_reward, format_reward
 
 
+def compute_score_videor1(predict_str: str, ground_truth: str, extra_info=None, **kwargs) -> float:
+    """
+    Video-R1 style reward computation with accuracy and format rewards.
+
+    Args:
+        predict_str: Model prediction string
+        ground_truth: Ground truth answer
+        extra_info: Dictionary containing additional info like 'question' and 'problem_type'
+        **kwargs: Additional arguments like temporal, len_control settings
+
+    Returns:
+        Tuple of (total_reward, accuracy_reward, format_reward) or just total_reward
+    """
+
+    def extract_answer_videor1(text):
+        """Extract answer from <answer></answer> tags"""
+        pattern = r"<answer>\s*(.*?)\s*</answer>"
+        match = re.search(pattern, text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return ""
+
+    def normalize_number(num_str):
+        """Normalize number string to float"""
+        try:
+            num_str = num_str.replace(",", "")
+            return float(num_str)
+        except Exception as e:
+            print(f"Error converting '{num_str}' to float: {e}")
+            return None
+
+    def wer(reference, hypothesis):
+        """Word Error Rate calculation"""
+        ref_words = reference.split()
+        hyp_words = hypothesis.split()
+        m = len(ref_words)
+        n = len(hyp_words)
+        d = [[0] * (n + 1) for _ in range(m + 1)]
+        for i in range(m + 1):
+            d[i][0] = i
+        for j in range(n + 1):
+            d[0][j] = j
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if ref_words[i - 1] == hyp_words[j - 1]:
+                    d[i][j] = d[i - 1][j - 1]
+                else:
+                    d[i][j] = 1 + min(d[i - 1][j], d[i][j - 1], d[i - 1][j - 1])
+        return d[m][n] / max(1, m)
+
+    def compute_rouge_score(reference, hypothesis, use_stemmer=True):
+        """Compute ROUGE score"""
+        scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=use_stemmer)
+        scores = scorer.score(reference, hypothesis)
+        average_fmeasure = (scores["rouge1"].fmeasure + scores["rouge2"].fmeasure + scores["rougeL"].fmeasure) / 3
+        return average_fmeasure
+
+    # Initialize variables
+    is_format_error = False
+
+    # Format checking - Video-R1 style
+    count_think_1 = predict_str.count("<think>")
+    count_think_2 = predict_str.count("</think>")
+    count_answer_1 = predict_str.count("<answer>")
+    count_answer_2 = predict_str.count("</answer>")
+
+    # Check format requirements
+    if count_think_1 != count_think_2 or count_think_1 == 0:
+        is_format_error = True
+    if count_answer_1 != count_answer_2 or count_answer_1 == 0:
+        is_format_error = True
+
+    # Check basic format pattern
+    pattern = r"<think>.*?</think>\s*<answer>.*?</answer>"
+    if not re.search(pattern, predict_str, re.DOTALL):
+        is_format_error = True
+
+    # Extract answer
+    if count_answer_1 == 0 or count_answer_2 == 0:
+        answer_text = ""
+    else:
+        answer_text = extract_answer_videor1(predict_str)
+
+    # Compute accuracy reward
+    # If there's a format error, set accuracy reward to 0 regardless of answer content
+    if answer_text == "" or is_format_error:
+        acc_reward = 0.0
+    else:
+        try:
+            # Get problem type from extra_info
+            problem_type = extra_info.get("problem_type", "free-form") if extra_info else "free-form"
+
+            output_ans = answer_text
+            gt_ans = extract_answer_videor1(ground_truth) if "<answer>" in ground_truth else ground_truth
+
+            if problem_type == "multiple choice":
+                acc_reward = 1.0 if output_ans.strip() == gt_ans.strip() else 0.0
+            elif problem_type == "numerical":
+                gt_has_decimal = ("." in gt_ans) or ("," in gt_ans)
+                out_has_decimal = ("." in output_ans) or ("," in output_ans)
+                if gt_has_decimal != out_has_decimal:
+                    acc_reward = 0.0
+                else:
+                    gt_number = normalize_number(gt_ans)
+                    out_number = normalize_number(output_ans)
+                    if gt_number is None or out_number is None:
+                        acc_reward = 0.0
+                    else:
+                        acc_reward = 1.0 if round(gt_number, 2) == round(out_number, 2) else 0.0
+            elif problem_type == "OCR":
+                error_rate = wer(gt_ans, output_ans)
+                acc_reward = 1 - error_rate
+                acc_reward = max(0.0, min(1.0, acc_reward))
+            elif problem_type == "free-form":
+                score = compute_rouge_score(gt_ans, output_ans)
+                acc_reward = max(0.0, min(1.0, score))
+            elif problem_type == "regression":
+                gt_number = normalize_number(gt_ans)
+                out_number = normalize_number(output_ans)
+                if gt_number is None or out_number is None:
+                    acc_reward = 0.0
+                else:
+                    rel_diff = (abs(out_number - gt_number) + 1e-9) / (abs(gt_number) + 1e-9)
+                    rel_diff = min(1.0, max(0.0, rel_diff))
+                    acc_reward = 1 - rel_diff
+            else:
+                # Unknown problem type - return 0 (same as original Video-R1)
+                acc_reward = 0.0
+
+        except Exception as e:
+            print(f"Error in Video-R1 accuracy reward computation: {e}")
+            acc_reward = 0.0
+
+    # Penalize for overly long answers
+    if len(answer_text) >= 1000:
+        acc_reward = 0.0
+        is_format_error = True
+
+    # Format reward
+    format_reward = 0.0 if is_format_error else 1.0
+
+    # Debug logging
+    if os.getenv("DEBUG_MODE") == "true":
+        log_path = os.getenv("LOG_PATH", "./videor1_debug.log")
+        current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"------------- {current_time} Video-R1 Reward -------------\n")
+            f.write(f"Prediction: {predict_str}\n")
+            f.write(f"Ground Truth: {ground_truth}\n")
+            f.write(f"Extracted Answer: {answer_text}\n")
+            f.write(f"Accuracy Reward: {acc_reward}\n")
+            f.write(f"Format Reward: {format_reward}\n")
+            f.write(f"Format Error: {is_format_error}\n")
+            f.write("=" * 50 + "\n")
+
+    return (acc_reward + format_reward, acc_reward, format_reward)
+
+
+def test_compute_score_videor1():
+    """Test function for compute_score_videor1"""
+    print("\n=== 测试 Video-R1 Reward 计算 ===")
+
+    # 测试1: 完美格式和正确答案 - multiple choice
+    predict_str1 = "<think>这是一个选择题，我需要分析选项</think><answer>A</answer>"
+    ground_truth1 = "A"
+    extra_info1 = {"question": "What is the correct answer?", "problem_type": "multiple choice"}
+    score1 = compute_score_videor1(predict_str1, ground_truth1, extra_info1, return_detailed=True)
+    print(f"测试1 - 选择题正确: {score1} (期望: (2.0, 1.0, 1.0))")
+
+    # 测试2: 格式错误 - 缺少think标签
+    predict_str2 = "<answer>A</answer>"
+    ground_truth2 = "A"
+    extra_info2 = {"question": "What is the correct answer?", "problem_type": "multiple choice"}
+    score2 = compute_score_videor1(predict_str2, ground_truth2, extra_info2, return_detailed=True)
+    print(f"测试2 - 格式错误: {score2} (期望: (0.0, 0.0, 0.0))")
+
+    # 测试3: 数值类型 - 正确答案
+    predict_str3 = "<think>计算结果是42</think><answer>42</answer>"
+    ground_truth3 = "42"
+    extra_info3 = {"question": "What is 6*7?", "problem_type": "numerical"}
+    score3 = compute_score_videor1(predict_str3, ground_truth3, extra_info3, return_detailed=True)
+    print(f"测试3 - 数值正确: {score3} (期望: (2.0, 1.0, 1.0))")
+
+    # 测试4: 数值类型 - 错误答案
+    predict_str4 = "<think>计算结果是43</think><answer>43</answer>"
+    ground_truth4 = "42"
+    extra_info4 = {"question": "What is 6*7?", "problem_type": "numerical"}
+    score4 = compute_score_videor1(predict_str4, ground_truth4, extra_info4, return_detailed=True)
+    print(f"测试4 - 数值错误: {score4} (期望: (1.0, 0.0, 1.0))")
+
+    # 测试5: 自由形式 - 使用ROUGE评分
+    predict_str5 = "<think>这是一个描述性问题</think><answer>The cat is sitting on the mat</answer>"
+    ground_truth5 = "The cat sits on the mat"
+    extra_info5 = {"question": "Describe what you see", "problem_type": "free-form"}
+    score5 = compute_score_videor1(predict_str5, ground_truth5, extra_info5, return_detailed=True)
+    print(f"测试5 - 自由形式: {score5[0]:.3f} (ROUGE评分 + 格式分)")
+
+    # 测试6: 答案过长 - 应该被惩罚
+    long_answer = "A" * 1001  # 超过1000字符
+    predict_str6 = f"<think>思考过程</think><answer>{long_answer}</answer>"
+    ground_truth6 = "A"
+    extra_info6 = {"question": "What is the answer?", "problem_type": "multiple choice"}
+    score6 = compute_score_videor1(predict_str6, ground_truth6, extra_info6, return_detailed=True)
+    print(f"测试6 - 答案过长: {score6} (期望: (0.0, 0.0, 0.0))")
+
+    print("=== Video-R1 Reward 测试完成 ===\n")
+
+
 if __name__ == "__main__":
-    print("\n=== 测试 IoU 时间区间计算 ===")
-
-    # 测试1: 完全重叠 - IoU应该为1.0
-    predict_str1 = "<think>分析视频内容</think><answer>[10.5, 20.3]</answer>"
-    ground_truth1 = "[10.5, 20.3]"
-    score1 = compute_score_time_r1(predict_str1, ground_truth1)
-    print(f"测试1 - 完全重叠: 预测={ground_truth1}, 真实={ground_truth1}")
-    print(f"Score: {score1:.3f} (期望: 1.0)")
-
-    # 测试2: 部分重叠 - 手动计算IoU
-    predict_str2 = "<think>分析视频内容</think><answer>[15.0, 25.0]</answer>"
-    ground_truth2 = "[10.0, 20.0]"
-    # 交集: [15.0, 20.0] = 5.0
-    # 并集: [10.0, 25.0] = 15.0
-    # IoU = 5.0/15.0 = 0.333
-    score2 = compute_score_time_r1(predict_str2, ground_truth2)
-    print("\n测试2 - 部分重叠: 预测=[15.0, 25.0], 真实=[10.0, 20.0]")
-    print(f"Score: {score2:.3f} (期望: 0.8*0.333+0.2*1.0 = 0.467)")
-
-    # 测试3: 完全不重叠 - IoU应该为0
-    predict_str3 = "<think>分析视频内容</think><answer>[30.0, 40.0]</answer>"
-    ground_truth3 = "[10.0, 20.0]"
-    score3 = compute_score_time_r1(predict_str3, ground_truth3)
-    print("\n测试3 - 完全不重叠: 预测=[30.0, 40.0], 真实=[10.0, 20.0]")
-    print(f"Score: {score3:.3f} (期望: 0.8*0.0+0.2*1.0 = 0.2)")
-
-    # 测试4: 格式错误
-    predict_str4 = "<think>分析视频内容<answer>[15.0, 25.0]</answer>"  # 缺少</think>
-    ground_truth4 = "[10.0, 20.0]"
-    score4 = compute_score_time_r1(predict_str4, ground_truth4)
-    print("\n测试4 - 格式错误: 缺少</think>标签")
-    print(f"Score: {score4:.3f} (期望: 0.267)")
-
-    # 测试5: 解析错误 - 应该返回0.2（只有格式分）
-    predict_str5 = "<think>分析视频内容</think><answer>这不是一个列表</answer>"
-    ground_truth5 = "[10.0, 20.0]"
-    score5 = compute_score_time_r1(predict_str5, ground_truth5)
-    print("\n测试5 - 解析错误: answer内容不是列表格式")
-    print(f"Score: {score5:.3f} (期望: 0.8*0.0+0.2*1.0 = 0.2)")
-
-    print("\n=== 测试 Recall 时间区间计算 ===")
-
-    # 测试1: 完全重叠 - Recall应该为1.0
-    predict_str1 = "<think>分析视频内容</think><answer>[10.5, 20.3]</answer>"
-    ground_truth1 = "[10.5, 20.3]"
-    score1_recall = compute_score_time_r1(predict_str1, ground_truth1, use_recall=True)
-    print(f"测试1 - 完全重叠 (Recall): 预测={ground_truth1}, 真实={ground_truth1}")
-    print(f"Score: {score1_recall:.3f} (期望: 1.0)")
-
-    # 测试2: 部分重叠 - 计算Recall
-    predict_str2 = "<think>分析视频内容</think><answer>[15.0, 25.0]</answer>"
-    ground_truth2 = "[10.0, 20.0]"
-    # 交集: [15.0, 20.0] = 5.0
-    # 真实区间长度: 20.0-10.0 = 10.0
-    # Recall = 5.0/10.0 = 0.5
-    score2_recall = compute_score_time_r1(predict_str2, ground_truth2, use_recall=True)
-    print("\n测试2 - 部分重叠 (Recall): 预测=[15.0, 25.0], 真实=[10.0, 20.0]")
-    print(f"Score: {score2_recall:.3f} (期望: 0.8*0.5+0.2*1.0 = 0.6)")
-
-    # 测试3: 预测区间包含真实区间 - Recall应该为1.0
-    predict_str3 = "<think>分析视频内容</think><answer>[5.0, 25.0]</answer>"
-    ground_truth3 = "[10.0, 20.0]"
-    # 交集: [10.0, 20.0] = 10.0
-    # 真实区间长度: 20.0-10.0 = 10.0
-    # Recall = 10.0/10.0 = 1.0
-    score3_recall = compute_score_time_r1(predict_str3, ground_truth3, use_recall=True)
-    print("\n测试3 - 预测包含真实 (Recall): 预测=[5.0, 25.0], 真实=[10.0, 20.0]")
-    print(f"Score: {score3_recall:.3f} (期望: 0.8*1.0+0.2*1.0 = 1.0)")
-
-    # 测试4: 完全不重叠 - Recall应该为0
-    predict_str4 = "<think>分析视频内容</think><answer>[30.0, 40.0]</answer>"
-    ground_truth4 = "[10.0, 20.0]"
-    score4_recall = compute_score_time_r1(predict_str4, ground_truth4, use_recall=True)
-    print("\n测试4 - 完全不重叠 (Recall): 预测=[30.0, 40.0], 真实=[10.0, 20.0]")
-    print(f"Score: {score4_recall:.3f} (期望: 0.8*0.0+0.2*1.0 = 0.2)")
-
-    print("\n=== 对比 IoU vs Recall ===")
-    # 对比同一个例子的IoU和Recall结果
-    predict_str_cmp = "<think>分析视频内容</think><answer>[15.0, 25.0]</answer>"
-    ground_truth_cmp = "[10.0, 20.0]"
-
-    score_iou = compute_score_time_r1(predict_str_cmp, ground_truth_cmp, use_recall=False)
-    score_recall = compute_score_time_r1(predict_str_cmp, ground_truth_cmp, use_recall=True)
-
-    print("预测=[15.0, 25.0], 真实=[10.0, 20.0]")
-    print(f"IoU Score: {score_iou:.3f}")
-    print(f"Recall Score: {score_recall:.3f}")
+    # 测试新的Video-R1 reward函数
+    test_compute_score_videor1()

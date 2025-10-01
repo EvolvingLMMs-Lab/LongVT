@@ -71,3 +71,9 @@ fsdp_config:
   # Only for FSDP1: FSDP1 configuration, prefetch the next forward-pass all-gather
   # before the current forward computation.
   forward_prefetch: False
+
+  # Mixed precision configuration
+  mixed_precision:
+      param_dtype: "bf16"
+      reduce_dtype: "fp32"
+      buffer_dtype: "fp32"

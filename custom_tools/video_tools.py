@@ -60,7 +60,7 @@ class VideoTools(MCPBaseTool):
             images = [process_image(image) for image in image_list]
 
             # Generate dynamic success message with frame count
-            success_msg = f"Successfully processed video and extracted {len(images)} frames"
+            success_msg = "The tool executed successfully. Here are the processed result"
             return {"image": images, "text": success_msg}, 0.0, {}
 
         except Exception as e:

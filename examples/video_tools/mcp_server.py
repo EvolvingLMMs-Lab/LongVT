@@ -106,13 +106,13 @@ def crop_video(
         raise ValueError(f"end_time ({end_time}s) exceeds video duration ({duration:.2f}s)")
 
     try:
-        nframes = 16
         video_ele = {
             "type": "video",
             "video": f"file://{video_path}",
+            "fps": 1,  # 1fps
             "min_frames": 1,
-            "max_frames": nframes,
-            "max_pixels": 360 * 420,
+            "max_frames": 128,
+            "max_pixels": 224 * 224,
             "video_start": start_time,
             "video_end": end_time,
         }

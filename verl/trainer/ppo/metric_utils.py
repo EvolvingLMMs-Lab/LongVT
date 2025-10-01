@@ -201,13 +201,35 @@ def compute_data_metrics(batch: DataProto, use_critic: bool = True) -> dict[str,
 
         if "tool_reward_score" in batch.non_tensor_batch:
             tool_reward_score = torch.tensor(batch.non_tensor_batch["tool_reward_score"], dtype=torch.float32)
-            metrics.update(
-                {
-                    "critic/score/tool_reward_score/mean": torch.mean(tool_reward_score).detach().item(),
-                    "critic/score/tool_reward_score/max": torch.max(tool_reward_score).detach().item(),
-                    "critic/score/tool_reward_score/min": torch.min(tool_reward_score).detach().item(),
-                }
-            )
+            # Filter out dummy values (negative values indicate unsupported reward types)
+            valid_mask = tool_reward_score >= 0
+            if valid_mask.sum() > 0:
+                valid_scores = tool_reward_score[valid_mask]
+                metrics.update(
+                    {
+                        "critic/score/tool_reward_score/mean": torch.mean(valid_scores).detach().item(),
+                        "critic/score/tool_reward_score/max": torch.max(valid_scores).detach().item(),
+                        "critic/score/tool_reward_score/min": torch.min(valid_scores).detach().item(),
+                        "critic/score/tool_reward_score/valid_count": valid_mask.sum().item(),
+                        "critic/score/tool_reward_score/total_count": len(tool_reward_score),
+                    }
+                )
+
+        if "time_reward_score" in batch.non_tensor_batch:
+            time_reward_score = torch.tensor(batch.non_tensor_batch["time_reward_score"], dtype=torch.float32)
+            # Filter out dummy values (negative values indicate unsupported reward types)
+            valid_mask = time_reward_score >= 0
+            if valid_mask.sum() > 0:
+                valid_scores = time_reward_score[valid_mask]
+                metrics.update(
+                    {
+                        "critic/score/time_reward_score/mean": torch.mean(valid_scores).detach().item(),
+                        "critic/score/time_reward_score/max": torch.max(valid_scores).detach().item(),
+                        "critic/score/time_reward_score/min": torch.min(valid_scores).detach().item(),
+                        "critic/score/time_reward_score/valid_count": valid_mask.sum().item(),
+                        "critic/score/time_reward_score/total_count": len(time_reward_score),
+                    }
+                )
 
     return metrics
 

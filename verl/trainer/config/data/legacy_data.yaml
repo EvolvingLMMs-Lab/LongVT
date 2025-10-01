@@ -48,6 +48,8 @@ return_full_prompt: False
 # Whether to shuffle the data in the dataloader.
 shuffle: True
 
+# Random seed for data loading.
+seed: 42
 # num dataloader workers
 dataloader_num_workers: 8
 

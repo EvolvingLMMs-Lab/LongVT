@@ -47,5 +47,10 @@ model:
     # before the current forward computation.
     forward_prefetch: False
 
+    mixed_precision:
+      param_dtype: "bf16"
+      reduce_dtype: "fp32"
+      buffer_dtype: "fp32"
+
 # Sequence parallelism size for Ulysses-style model parallelism
 ulysses_sequence_parallel_size: 1
