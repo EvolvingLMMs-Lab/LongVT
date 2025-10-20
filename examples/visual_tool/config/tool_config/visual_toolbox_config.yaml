@@ -1,5 +1,5 @@
 tools:
-  - class_name: "verl.tools.visual_toolbox.VisualToolBox"
+  - class_name: "custom_tools.visual_toolbox.VisualToolBox"
     config: 
       type: native
     tool_schema:

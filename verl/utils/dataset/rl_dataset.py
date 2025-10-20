@@ -50,15 +50,27 @@ def collate_fn(data_list: list[dict]) -> dict:
     tensors = defaultdict(list)
     non_tensors = defaultdict(list)
 
+    # mix training
+
+    all_keys = set()
     for data in data_list:
-        for key, val in data.items():
+        all_keys.update(data.keys())
+
+    for data in data_list:
+        for key in all_keys:
+            val = data.get(key, None)  # 如果键不存在，使用None
             if isinstance(val, torch.Tensor):
                 tensors[key].append(val)
             else:
                 non_tensors[key].append(val)
 
     for key, val in tensors.items():
-        tensors[key] = torch.stack(val, dim=0)
+        # 过滤掉None值，只堆叠有效的tensor
+        valid_tensors = [v for v in val if v is not None]
+        if valid_tensors:
+            tensors[key] = torch.stack(valid_tensors, dim=0)
+        else:
+            del tensors[key]  # 如果没有有效tensor，删除该键
 
     for key, val in non_tensors.items():
         non_tensors[key] = np.fromiter(val, dtype=object, count=len(val))

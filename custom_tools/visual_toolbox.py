@@ -70,10 +70,12 @@ class VisualToolBox(BaseTool):
         return self.tool_schema
 
     async def create(self, instance_id: Optional[str] = None, ground_truth: Optional[str] = None, **kwargs) -> str:
-        # breakpoint()
         if instance_id is None:
             instance_id = str(uuid4())
-        self._instance_dict[instance_id] = {"images": kwargs["images"]["image"]}
+        self._instance_dict[instance_id] = {
+            "images": kwargs["images"]["image"],
+            "tool_call_count": 0,
+        }
         return instance_id, None
 
     def validate_bbox(self, left, top, right, bottom):
@@ -117,7 +119,7 @@ class VisualToolBox(BaseTool):
 
     @rollout_trace_op
     async def execute(self, instance_id: str, parameters: dict[str, Any], **kwargs) -> tuple[str, float, dict]:
-        # breakpoint()
+        self._instance_dict[instance_id]["tool_call_count"] += 1
         from verl.utils.dataset.vision_utils import process_image
 
         # img1 = kwargs['images']
@@ -129,7 +131,6 @@ class VisualToolBox(BaseTool):
 
         try:
             # Zoom in by cropping the image
-            # image_path = args["image_path"]
             bbox = parameters["bbox_2d"]
             bbox = self.maybe_resize_bbox(*bbox)
             if not bbox:
@@ -146,7 +147,7 @@ class VisualToolBox(BaseTool):
             return {"text": e}, 0, {}
 
     async def calc_reward(self, instance_id: str, **kwargs) -> float:
-        return None
+        return self._instance_dict[instance_id]["tool_call_count"]
 
     async def release(self, instance_id: str, **kwargs) -> None:
         self._instance_dict.pop(instance_id, None)

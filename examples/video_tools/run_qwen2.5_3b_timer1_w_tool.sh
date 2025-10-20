@@ -16,7 +16,7 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='timer1_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=8 \
+    data.train_batch_size=4 \
     data.max_prompt_length=8192 \
     data.max_response_length=32768 \
     data.filter_overlong_prompts=False \

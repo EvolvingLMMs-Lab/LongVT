@@ -1097,7 +1097,6 @@ class RayPPOTrainer:
 
                     # compute global_valid tokens
                     batch.meta_info["global_token_num"] = torch.sum(batch.batch["attention_mask"], dim=-1).tolist()
-                    # breakpoint()
                     with marked_timer("reward", timing_raw, color="yellow"):
                         # compute reward model score
                         if self.use_rm and "rm_scores" not in batch.batch.keys():
@@ -1218,40 +1217,37 @@ class RayPPOTrainer:
                             last_val_metrics = val_metrics
                     metrics.update(val_metrics)
                     # tool metrics
-                    # 需要一个简单的方法判断使用的tool种类
-                    messages_list = gen_batch_output.non_tensor_batch["messages"]
+                    reward_scores = gen_batch_output.non_tensor_batch.get("reward_scores", [])
+                    if len(reward_scores) > 0:
+                        tool_call = reward_scores
 
-                    tool_call_counts = []
-                    for item in messages_list:
-                        msgs = item["messages"]  # List[Message]
+                        tool_call_counts = []
+                        for item in tool_call:
+                            # 获取除了 'user_turn_rewards' 之外的所有工具字段
+                            tool_fields = {k: v for k, v in item.items() if k != "user_turn_rewards"}
 
-                        if (
-                            msgs[0].role == "user"
-                            and "<tool_call>" in msgs[0].content[1]["text"]
-                            and "</tool_call>" in msgs[0].content[1]["text"]
-                        ):
-                            pass
+                            if tool_fields:
+                                # the first tool call
+                                count = next(iter(tool_fields.values()))
+                                # all tool calls
+                                # count = sum(tool_fields.values())
+                                if isinstance(count, int):
+                                    tool_call_counts.append(count if count < 5 else 5)  # max_tool_call
+
+                        if tool_call_counts:
+                            mean_calls = sum(tool_call_counts) / len(tool_call_counts)
+                            min_calls = min(tool_call_counts)
+                            max_calls = max(tool_call_counts)
                         else:
-                            continue
+                            mean_calls = min_calls = max_calls = 0
 
-                        total_calls = sum(len(m.tool_calls or []) for m in msgs)
-                        tool_call_counts.append(total_calls if total_calls < 5 else 5)  # max_tool_call
-
-                    if tool_call_counts:
-                        mean_calls = sum(tool_call_counts) / len(tool_call_counts)
-                        min_calls = min(tool_call_counts)
-                        max_calls = max(tool_call_counts)
-                    else:
-                        mean_calls = min_calls = max_calls = 0
-
-                    metrics.update(
-                        {
-                            "tool_calls/mean": mean_calls,
-                            "tool_calls/min": min_calls,
-                            "tool_calls/max": max_calls,
-                        }
-                    )
-
+                        metrics.update(
+                            {
+                                "tool_calls/mean": mean_calls,
+                                "tool_calls/min": min_calls,
+                                "tool_calls/max": max_calls,
+                            }
+                        )
                     # validate
                     if (
                         self.val_reward_fn is not None

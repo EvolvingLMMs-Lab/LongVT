@@ -128,3 +128,5 @@ outputs
 .history
 
 workspace/*
+data/results/*
+data/scripts/*

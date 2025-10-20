@@ -47,6 +47,10 @@ For each function call, return a json object with function name and arguments wi
 <|im_start|>system
 You are a helpful assistant.
 <|im_end|>
+  {% elif loop.first and message['role'] == 'system' and not tools %}
+  {{- '<|im_start|>system\\n' -}}
+{{ message['content'] if message['content'] is string else (message['content'] | selectattr('type', 'equalto', 'text') | map(attribute='text') | join('')) }}
+<|im_end|>
   {% endif %}
 
   {# USER, SYSTEM (non-initial), ASSISTANT (no tool call) #}

@@ -524,7 +524,6 @@ class SGLangRollout(BaseRollout):
         """
         if config.multi_turn.tool_config_path is None:
             return [], {}, None, [], None
-
         tools_config_file = config.multi_turn.tool_config_path
         tool_list = initialize_tools_from_config(tools_config_file)
 
@@ -848,7 +847,6 @@ class SGLangRollout(BaseRollout):
         request_sampling_params.update(kwargs)
 
         while current_turns < self.config.multi_turn.max_assistant_turns:
-            # breakpoint()
             if _req.state == AsyncRolloutRequestStateEnum.PENDING:
                 await self._handle_pending_state(_req)
                 _req.state = AsyncRolloutRequestStateEnum.RUNNING
@@ -888,7 +886,6 @@ class SGLangRollout(BaseRollout):
 
                     # _req.state = AsyncRolloutRequestStateEnum.RUNNING
 
-                    # breakpoint()
                     success = _req.add_tool_response_messages(
                         self.processing_class,
                         [resp for resp, _, _ in tool_call_results],
@@ -1474,6 +1471,7 @@ class SGLangRollout(BaseRollout):
         ):
             if self._tool_schemas:
                 _tools_kwargs = prompts.non_tensor_batch["tools_kwargs"][data_idx]
+                _tools_kwargs = _tools_kwargs or {}  # fix mixed data bug
                 _tool_schemas = [self._tool_map[k].get_openai_tool_schema() for k in _tools_kwargs.keys()]
                 _input_ids = None
                 _attention_mask = None

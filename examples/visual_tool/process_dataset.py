@@ -18,7 +18,7 @@ from datasets import Dataset, Features, Image, Sequence
 def make_map_fn():
     def fn(example):
         # 1) 过滤掉 system 消息
-        example["prompt"] = [m for m in example["prompt"] if m.get("role") != "system"]
+        # example["prompt"] = [m for m in example["prompt"] if m.get("role") != "system"]
         # 2) 删除 env_name（如果存在）
         example.pop("env_name", None)
 
@@ -31,12 +31,22 @@ def make_map_fn():
 
         # 5) 更新 extra_info 中的工具调用参数
         extra = example["extra_info"]
-        extra["need_tools_kwargs"] = True
-        extra["tools_kwargs"] = {"image_zoom_in_tool": {"execute_kwargs": {"dummy": ""}}}
+
+        if "index" in extra and isinstance(extra["index"], str):
+            # 如果是，则将其转换为整数
+            try:
+                extra["index"] = int(extra["index"])
+            except (ValueError, TypeError):
+                # 如果转换失败（例如，如果字符串不是数字），可以设置一个默认值或进行其他处理
+                # 这里我们假设它总能成功转换
+                pass
+
+        # extra["need_tools_kwargs"] = False
+        # extra["tools_kwargs"] = {"image_zoom_in_tool": {"execute_kwargs": {"dummy": ""}}}
 
         # extra["tools_kwargs"] = {"_dummy": ""}   ##math
 
-        example["extra_info"] = extra
+        # example["extra_info"] = extra
 
         return example
 
@@ -44,8 +54,8 @@ def make_map_fn():
 
 
 if __name__ == "__main__":
-    src_parquet = "/pfs/training-data/zuhaoyang/data/train/DeepEyes-47k/data_v0.8_visual_toolbox_v2.parquet"
-    out_dir = "/pfs/training-data/sudongwang/dataset/deepeyes_process/data_v0.8_visual_toolbox_v2_processed.parquet"
+    src_parquet = "your_path.parquet"
+    out_dir = "your_path.parquet"
 
     # 加载
     # ds = load_dataset("parquet", data_files=src_parquet, split="train")

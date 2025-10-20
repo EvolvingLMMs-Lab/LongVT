@@ -22,7 +22,7 @@ from openai import OpenAI
 
 openai_api_key = "EMPTY"
 openai_api_base_list = [
-    os.environ.get("LLM_AS_A_JUDGE_BASE", "YOUR_API_BASE_HERE"),
+    os.environ.get("LLM_AS_A_JUDGE_BASE", "https://sd285v869b9467c7sab70.apigateway-cn-shanghai.volceapi.com/v1"),
 ]
 
 client_list = []
@@ -226,8 +226,13 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None) -> float
 
     count_vision_1 = predict_str.count("<tool_call>")
     count_vision_2 = predict_str.count("</tool_call>")
-    if count_vision_1 != count_vision_2 or count_vision_1 == 0:  ##
+    if count_vision_1 != count_vision_2:
         is_format_error = True
+
+    count_vision_response_1 = predict_str.count("<tool_response>")
+    # count_vision_response_2 = predict_str.count("</tool_response>")
+    # if count_vision_response_1 != count_vision_response_2:
+    #     is_format_error = True
 
     predict_no_think = predict_str.split("</think>")[-1].strip()
     count_answer_1 = predict_no_think.count("<answer>")
@@ -235,51 +240,50 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None) -> float
     if count_answer_1 != count_answer_2 or count_answer_1 == 0:  ##
         is_format_error = True
 
-    answer_text = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
-
-    # pattern = re.compile(r'<\|im_start\|>assistant(.*?)$', re.DOTALL)  # 匹配最后一个 target 后的所有内容
-    # match = pattern.search(predict_str)
-    # if match:
-    #     answer_text = match.group(1).strip()
-    #     print(f'DEBUG{answer_text=}')
-    # else:
-    #     answer_text = ""
-
-    question_text = extra_info["question"]
-    full_prompt = get_prompt(answer_text, ground_truth, question_text)
-
-    client_idx = random.randint(0, len(client_list) - 1)
-    client = client_list[client_idx]
-    model_name = model_name_list[client_idx]
-
-    chat_response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": full_prompt},
-        ],
-        seed=random.randint(0, 1000000),
-        temperature=0.3,
-    )
-    response = chat_response.choices[0].message.content.strip()
-    # print(response)
-    if "Judgement:" in response:
-        response = response.split("Judgement:")[-1].strip()
-        if "1" in response:
-            acc_reward = 1.0
-        elif "0" in response:
-            acc_reward = 0.0
-        else:
-            print(f" [WARNING] resp format error {response=}")
-            acc_reward = 0.0
+    if count_answer_1 == 0 or count_answer_2 == 0:
+        answer_text = ""
     else:
-        if response == "1":
-            acc_reward = 1.0
-        elif response == "0":
-            acc_reward = 0.0
+        answer_text = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
+
+    # skip the case that the answer is empty
+    if answer_text == "":
+        acc_reward = 0.0
+    else:
+        question_text = extra_info["question"]
+        full_prompt = get_prompt(answer_text, ground_truth, question_text)
+
+        client_idx = random.randint(0, len(client_list) - 1)
+        client = client_list[client_idx]
+        model_name = model_name_list[client_idx]
+
+        chat_response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": full_prompt},
+            ],
+            seed=random.randint(0, 1000000),
+            temperature=0.3,
+        )
+        response = chat_response.choices[0].message.content.strip()
+        # print(response)
+        if "Judgement:" in response:
+            response = response.split("Judgement:")[-1].strip()
+            if "1" in response:
+                acc_reward = 1.0
+            elif "0" in response:
+                acc_reward = 0.0
+            else:
+                print(f" [WARNING] resp format error {response=}")
+                acc_reward = 0.0
         else:
-            print(f" [WARNING] resp format error {response=}")
-            acc_reward = 0.0
+            if response == "1":
+                acc_reward = 1.0
+            elif response == "0":
+                acc_reward = 0.0
+            else:
+                print(f" [WARNING] resp format error {response=}")
+                acc_reward = 0.0
 
     # Penalize for model trying to predict longer answer to hack llm-as-judge
     if len(answer_text) >= 1000:
@@ -287,15 +291,15 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None) -> float
         is_format_error = True
 
     # tool_reward_base = 1.0 if count_vision_1 > 0 else 0.0
-    tool_reward = 1.0 if count_vision_1 > 0 and acc_reward > 0.5 else 0.0
+    tool_reward = 1.0 if count_vision_response_1 > 0 and acc_reward > 0.5 else 0.0
     format_reward = -1.0 if is_format_error else 0.0
     # reward 1
     # return 0.8 * acc_reward + 0.2 * format_reward + 0.4 * tool_reward_base
     # reward 2
-    print(
-        f"[DEBUG] query={extra_info['question']}, {ground_truth=}, "
-        f"{answer_text=}, {acc_reward=}, {format_reward=}, {tool_reward=}"
-    )
+    # print(
+    #     f"[DEBUG] query={extra_info['question']}, {ground_truth=}, "
+    #     f"{answer_text=}, {acc_reward=}, {format_reward=}, {tool_reward=}"
+    # )
     return 0.8 * acc_reward + 0.2 * format_reward + 1.2 * tool_reward
 
     # reward 2
@@ -426,26 +430,39 @@ def compute_score_math(predict_str: str, ground_truth: str, extra_info=None) -> 
     # predict_str = "<think>" + predict_str
     count_think_1 = predict_str.count("<think>")
     count_think_2 = predict_str.count("</think>")
-    if count_think_1 != count_think_2:
+    if count_think_1 != count_think_2 or count_think_1 == 0:  # reward hacking
         is_format_error = True
-    # print(predict_str)
-    # print('--------------------------------------------------------------------')
-    model_answer = ""
-    predict_no_think = predict_str.split("</think>")[-1].strip()
-    answer_pattern = r"\\boxed{([^}]+)}"
-    answer_list = re.findall(answer_pattern, predict_no_think, flags=re.DOTALL)
-    if len(answer_list) == 0:
-        acc_reward = 0.0
-        is_format_error = True
-    else:
-        if len(answer_list) > 1:
-            is_format_error = True
 
-        model_answer = answer_list[-1]
-        if rule_math_verify(ground_truth, model_answer):
-            acc_reward = 1.0
+    predict_no_think = predict_str.split("</think>")[-1].strip()
+    count_answer_1 = predict_no_think.count("<answer>")
+    count_answer_2 = predict_no_think.count("</answer>")
+    if count_answer_1 != count_answer_2 or count_answer_1 == 0:
+        is_format_error = True
+
+    # extract answer content from answer tag
+    if count_answer_1 == 0 or count_answer_2 == 0:
+        answer_content = ""
+    else:
+        answer_content = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
+
+    model_answer = ""
+    if answer_content == "":
+        acc_reward = 0.0
+    else:
+        answer_pattern = r"\\boxed{([^}]+)}"
+        answer_list = re.findall(answer_pattern, answer_content, flags=re.DOTALL)
+        if len(answer_list) == 0:
+            acc_reward = 0.0
+            is_format_error = True
         else:
-            acc_reward = 1.0 if generative_verify(extra_info["question"], ground_truth, model_answer) else 0.0
+            if len(answer_list) > 1:
+                is_format_error = True
+
+            model_answer = answer_list[-1]
+            if rule_math_verify(ground_truth, model_answer):
+                acc_reward = 1.0
+            else:
+                acc_reward = 1.0 if generative_verify(extra_info["question"], ground_truth, model_answer) else 0.0
 
     format_reward = -1.0 if is_format_error else 0.0
     print(

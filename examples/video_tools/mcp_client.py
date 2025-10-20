@@ -87,9 +87,7 @@ async def main():
     client = MCPClientDemo(server_path="examples/video_tools/mcp_server.py")
     # 执行天气查询示例
     result = await client.run()
-    result = await client.run_tool(
-        "crop_video", {"video_path": "/path/to/video.mp4", "start_time": 10.0, "end_time": 20.0}
-    )
+    result = await client.run_tool("crop_video", {"video_path": "../test.mp4", "start_time": 10.0, "end_time": 20.0})
     return result
 
     # 格式化输出对比结果

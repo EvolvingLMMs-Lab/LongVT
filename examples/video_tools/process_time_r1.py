@@ -24,7 +24,7 @@ SYSTEM_PROMPT = (
     "You are an AI assistant designed to identify the most relevant temporal segment in a "
     "video that corresponds to a given natural language description."
     " Your task is to analyze the video and provide a precise time range that best matches the description."
-    " Return your answer as a list of two floats: [start_time, end_time]"
+    " Return your answer as a list of three floats: ['start_time', 'end_time']"
 )
 
 
@@ -90,10 +90,17 @@ def main():
     if args.limit is not None:
         data = data[: args.limit]
 
+    # instruction_following = (
+    #     r"You FIRST think about the reasoning process as an internal monologue and then provide the final answer. "
+    #     r"The reasoning process MUST BE enclosed within <think> </think> tags. "
+    #     r"The final answer MUST BE put in <answer> </answer> tags."
+    # )
+
+    # tool use instruction
     instruction_following = (
         r"You FIRST think about the reasoning process as an internal monologue and then provide the final answer. "
-        r"The reasoning process MUST BE enclosed within <think> </think> tags. "
-        r"The final answer MUST BE put in <answer> </answer> tags."
+        r"Think first, call **crop_video** if needed, then answer. Format strictly as:  <think>...</think>  "
+        r"<tool_call>...</tool_call> (if tools needed)  <answer>...</answer> "
     )
 
     # with Pool(processes=16) as pool:
