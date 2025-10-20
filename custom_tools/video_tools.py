@@ -16,19 +16,23 @@ import base64
 import logging
 import os
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Tuple
 from uuid import uuid4
 
 from PIL import Image
 
 from verl.tools.mcp_base_tool import MCPBaseTool
+from verl.tools.schemas import OpenAIFunctionToolSchema, ToolResponse
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
 
 class VideoTools(MCPBaseTool):
-    async def create(self, instance_id: Optional[str] = None, **kwargs) -> str:
+    def __init__(self, config: dict, tool_schema: OpenAIFunctionToolSchema):
+        super().__init__(config, tool_schema)
+    
+    async def create(self, instance_id: Optional[str] = None, **kwargs) -> Tuple[str, ToolResponse]:
         """Create a tool instance.
 
         Args:
@@ -40,7 +44,7 @@ class VideoTools(MCPBaseTool):
         if instance_id is None:
             instance_id = str(uuid4())
         self._instance_dict[instance_id] = {"tool_call_count": 0}
-        return instance_id
+        return instance_id, ToolResponse()
 
     async def execute(self, instance_id, parameters, **kwargs):
         try:
@@ -52,7 +56,7 @@ class VideoTools(MCPBaseTool):
             if api_error:
                 error_msg = f"Tool execution failed: {api_error}"
                 logger.error(f"[VideoTools] MCP call failed: {api_error}")
-                return error_msg, 0.0, {"error": api_error}
+                return ToolResponse(text=error_msg), 0.0, {"error": api_error}
 
             image_list = metadata["images"]
             from verl.utils.dataset.vision_utils import process_image
@@ -61,12 +65,12 @@ class VideoTools(MCPBaseTool):
 
             # Generate dynamic success message with frame count
             success_msg = "The tool executed successfully. Here are the processed result"
-            return {"image": images, "text": success_msg}, 0.0, {}
+            return ToolResponse(image=images, text=success_msg), 0.0, {"success": True}
 
         except Exception as e:
             error_msg = f"Tool execution failed: {e}"
             logger.error(f"[VideoTools] Execution failed: {e}")
-            return error_msg, 0.0, {"error": str(e)}
+            return ToolResponse(text=error_msg), 0.0, {"error": str(e)}
 
     # tool call count
     async def calc_reward(self, instance_id: str, **kwargs) -> str:
@@ -83,7 +87,7 @@ class VideoTools(MCPBaseTool):
             if any(error_keyword in text.lower() for error_keyword in error_keywords):
                 api_error = text
                 logger.error(f"[VideoTools] MCP response contains error: {api_error}")
-                return "", {"images": [], "api_request_error": api_error}
+                return ToolResponse(text=api_error), 0.0, {"error": api_error}
 
         # Parse image content
         image_contents = [part.data for part in filter(lambda x: x.type == "image", content)]
@@ -94,7 +98,7 @@ class VideoTools(MCPBaseTool):
             im = Image.open(BytesIO(base64.b64decode(image_content)))
             image_lists.append(im)
 
-        return "", {"images": image_lists, "api_request_error": ""}
+        return ToolResponse(image=image_lists), 0.0, {}
 
     async def release(self, instance_id: str, **kwargs) -> None:
         self._instance_dict.pop(instance_id, None)

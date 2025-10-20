@@ -112,6 +112,7 @@ def crop_video(
             "fps": 1,  # 1fps
             "min_frames": 1,
             "max_frames": 128,
+            "min_pixels": 3136,
             "max_pixels": 224 * 224,
             "video_start": start_time,
             "video_end": end_time,
