@@ -276,6 +276,10 @@ class SGLangRollout(BaseRollout):
             self._function_call_parser,
         ) = self._initialize_tools(config, processing_class)
         self.interaction_map: dict[str, BaseInteraction] = self._initialize_interactions(config)
+        # Hardcode the bot_token and eot_token for Qwen25Detector
+        if type(self._function_call_parser.detector).__name__ == "Qwen25Detector":
+            self._function_call_parser.detector.bot_token = "<tool_call>"
+            self._function_call_parser.detector.eot_token = "</tool_call>"
 
         # If turn on `free_cache_engine`, SGLang engine's KV cache
         # will be freed after each `generate_sequences` call.
