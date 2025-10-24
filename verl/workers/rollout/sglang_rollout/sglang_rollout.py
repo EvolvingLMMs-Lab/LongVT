@@ -1118,9 +1118,10 @@ class SGLangRollout(BaseRollout):
                     create_kwargs["images"] = _req.multi_modal_data
                 tool_creation_coroutines.append(tool.create(_req.request_id, **create_kwargs))
             tool_creation_results = await asyncio.gather(*tool_creation_coroutines)
-            _req.add_tool_response_messages(
-                self.processing_class, [tool_result for _, tool_result in tool_creation_results]
-            )
+            # This will add an empty tool calling in messages, which is not expected
+            # _req.add_tool_response_messages(
+            #     self.processing_class, [tool_result for _, tool_result in tool_creation_results]
+            # )
         if _req.interaction_kwargs and self.interaction_map:
             interaction_kwargs = _req.interaction_kwargs
             # Get interaction by name from interaction_kwargs

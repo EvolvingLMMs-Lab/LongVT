@@ -128,6 +128,7 @@ class FlopsCounter:
             "qwen2_moe": self._estimate_qwen2_moe_flops,
             "qwen2_vl": self._estimate_qwen2_flops,
             "qwen2_5_vl": self._estimate_qwen2_flops,
+            "qwen2_5_vl_text": self._estimate_qwen2_flops,
             "qwen3": self._estimate_qwen2_flops,
             "qwen3_moe": self._estimate_qwen2_moe_flops,
             "qwen3_vl": self._estimate_qwen2_flops,
