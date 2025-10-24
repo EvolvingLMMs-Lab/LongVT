@@ -27,10 +27,77 @@ from verl.tools.schemas import OpenAIFunctionToolSchema, ToolResponse
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
+from fastmcp import Client
+
+from verl.tools.utils.mcp_clients.utils import mcp2openai
+
+
+# I don't know why, but official mcp client is not working and kept hanging.
+# Create a client to connect to the mcp server instead directly
+class MCPClientDemo:
+    def __init__(self, server_path: str):
+        """
+        Initialize MCP client
+        :param server_path: Path to MCP server script
+        """
+        self.server_path = server_path
+        self.client = None
+
+    async def initialize(self):
+        """
+        Initialize client connection
+        """
+        if self.client is None:
+            # Configure local stdio server
+            config = {
+                "mcpServers": {
+                    "local_server": {
+                        "command": "python",
+                        "args": [self.server_path]
+                    }
+                }
+            }
+            self.client = Client(config)
+
+    async def run(self):
+        """
+        Get all tool information from the server and convert to OpenAI format
+        :return: Tool list in OpenAI format
+        """
+        await self.initialize()
+        
+        tool_schemas = []
+        async with self.client:
+            # Get all tool information registered by the server
+            tools_response = await self.client.list_tools_mcp()
+            
+            # Convert MCP tool format to OpenAI function call format
+            for tool in tools_response.tools:
+                openai_tool = mcp2openai(tool)
+                tool_schemas.append(openai_tool)
+                print(openai_tool)
+        
+        return tool_schemas
+
+    async def run_tool(self, tool_name: str, tool_args: dict):
+        """
+        Run a specific tool with the given arguments.
+        :param tool_name: Name of the tool to run.
+        :param tool_args: Arguments for the tool.
+        :return: Result of the tool execution.
+        """
+        await self.initialize()
+        
+        async with self.client:
+            result = await self.client.call_tool_mcp(tool_name, tool_args)
+            return result
+
 
 class VideoTools(MCPBaseTool):
     def __init__(self, config: dict, tool_schema: OpenAIFunctionToolSchema):
         super().__init__(config, tool_schema)
+        server_path = config.get("server_path")
+        self.client = MCPClientDemo(server_path)
     
     async def create(self, instance_id: Optional[str] = None, **kwargs) -> Tuple[str, ToolResponse]:
         """Create a tool instance.
@@ -45,6 +112,17 @@ class VideoTools(MCPBaseTool):
             instance_id = str(uuid4())
         self._instance_dict[instance_id] = {"tool_call_count": 0}
         return instance_id, ToolResponse()
+
+    async def _call_tool(self, instance_id, parameters):
+        err_msg = None
+        try:
+            result = await self.client.run_tool(self.name, parameters)
+        except Exception as e:
+            err_msg = f"Tool execution failed: {e}"
+            logger.error(f"[VideoTools] Execution failed: {e}")
+        result, metadata = self._parse_tool_result(result.content)
+        metadata["api_request_error"] = "" if not err_msg else err_msg
+        return result, metadata
 
     async def execute(self, instance_id, parameters, **kwargs):
         try:
@@ -87,7 +165,7 @@ class VideoTools(MCPBaseTool):
             if any(error_keyword in text.lower() for error_keyword in error_keywords):
                 api_error = text
                 logger.error(f"[VideoTools] MCP response contains error: {api_error}")
-                return ToolResponse(text=api_error), 0.0, {"error": api_error}
+                return "", {"images": [], "api_request_error": api_error}
 
         # Parse image content
         image_contents = [part.data for part in filter(lambda x: x.type == "image", content)]
@@ -98,7 +176,7 @@ class VideoTools(MCPBaseTool):
             im = Image.open(BytesIO(base64.b64decode(image_content)))
             image_lists.append(im)
 
-        return ToolResponse(image=image_lists), 0.0, {}
+        return "", {"images": image_lists, "api_request_error": ""}
 
     async def release(self, instance_id: str, **kwargs) -> None:
         self._instance_dict.pop(instance_id, None)

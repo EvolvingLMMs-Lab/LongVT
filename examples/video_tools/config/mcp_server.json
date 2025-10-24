@@ -2,7 +2,7 @@
   "mcpServers": {
     "Video Tools MCP Server": {
       "command": "python",
-      "args": ["/pfs/training-data/sudongwang/VideoTool/examples/video_tools/mcp_server.py"]
+      "args": ["./examples/video_tools/mcp_server.py"]
     }
   }
 }
