@@ -333,6 +333,7 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
     tool_use_reward = kwargs.get("tool_use_reward", False)  # tool reawrd
     use_time_reward = kwargs.get("use_time_reward", False)  # recall reward
     use_iou_reward = kwargs.get("use_iou_reward", False)  # iou reward
+    use_tiou_reward = kwargs.get("use_tiou_reward", False)  # tiou reward (IoU v2 with normalized temporal distance)
     use_new_reward = kwargs.get("use_new_reward", False)  # acc:format = 1:1
 
     tool_reward = 0.0
@@ -445,6 +446,74 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
             time_reward = 0.0
 
         return (1.0 * acc_reward + 1.0 * format_reward + 1.0 * time_reward, acc_reward, format_reward, time_reward)
+
+    if use_tiou_reward:
+        count_vision_response_1 = predict_str.count("<tool_response>")
+        if count_vision_response_1 > 0:
+            ground_truth_time = extra_info["video_segment"]
+            video_duration = extra_info.get("duration", None)
+
+            # extract the time from the tool_response
+            tiou_reward = 0.0
+            try:
+                # find all tool_calls and get the last crop_video
+                tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+                tool_calls = re.findall(tool_call_pattern, predict_str, re.DOTALL)
+
+                # find the last crop_video tool call
+                last_crop_video = None
+                for tool_call in reversed(tool_calls):  # iterate from the end
+                    try:
+                        tool_data = ast.literal_eval(tool_call.strip())
+                        if isinstance(tool_data, dict) and tool_data.get("name") == "crop_video":
+                            arguments = tool_data.get("arguments", {})
+                            if "start_time" in arguments and "end_time" in arguments:
+                                last_crop_video = (float(arguments["start_time"]), float(arguments["end_time"]))
+                                break  # found the last crop_video, exit immediately
+                    except (ValueError, SyntaxError, KeyError):
+                        continue
+
+                # calculate tiou reward (IoU v2 with normalized temporal distance)
+                if last_crop_video and video_duration is not None:
+                    pred_start, pred_end = last_crop_video
+
+                    # get the ground truth time interval
+                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                        gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
+
+                        # compute intersection
+                        intersection_start = max(pred_start, gt_start)
+                        intersection_end = min(pred_end, gt_end)
+                        intersection = max(0, intersection_end - intersection_start)
+
+                        # compute union
+                        union_start = min(pred_start, gt_start)
+                        union_end = max(pred_end, gt_end)
+                        union = union_end - union_start
+
+                        # compute IoU
+                        if union > 0:
+                            iou = intersection / union
+                        else:
+                            iou = 1.0 if intersection > 0 else 0.0
+
+                        # compute normalized temporal distances (same as time-r1's iou_timestamp_reward_v2)
+                        gt_start_norm = gt_start / video_duration
+                        gt_end_norm = gt_end / video_duration
+                        pred_start_norm = pred_start / video_duration
+                        pred_end_norm = pred_end / video_duration
+
+                        # tiou = IoU * (1 - |gt_start_norm - pred_start_norm|) * (1 - |gt_end_norm - pred_end_norm|)
+                        tiou_reward = (
+                            iou * (1 - abs(gt_start_norm - pred_start_norm)) * (1 - abs(gt_end_norm - pred_end_norm))
+                        )
+            except Exception as e:
+                print(f" [WARNING] tiou reward computation error: {e}")
+                tiou_reward = 0.0
+        else:
+            tiou_reward = 0.0
+
+        return (1.0 * acc_reward + 1.0 * format_reward + 1.0 * tiou_reward, acc_reward, format_reward, tiou_reward)
 
     if use_new_reward:
         return (1.0 * acc_reward + 1.0 * format_reward, acc_reward, format_reward)

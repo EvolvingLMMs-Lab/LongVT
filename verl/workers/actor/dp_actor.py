@@ -488,6 +488,15 @@ class DataParallelPPOActor(BasePPOActor):
                         loss = policy_loss * loss_scale_factor
                     else:
                         loss = policy_loss * loss_scale_factor
+
+                    # Assert-based diagnostics to fail fast on non-finite values before backward
+                    assert torch.isfinite(log_prob).all().item() and torch.isfinite(old_log_prob).all().item(), (
+                        "Non-finite log_prob detected"
+                    )
+                    assert torch.isfinite(advantages).all().item(), "Non-finite advantages detected"
+                    assert torch.isfinite(policy_loss).item(), "Non-finite policy_loss detected"
+                    assert torch.isfinite(loss).item(), "Non-finite loss detected"
+
                     loss.backward()
 
                     micro_batch_metrics.update(
