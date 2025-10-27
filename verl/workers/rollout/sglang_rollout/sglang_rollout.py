@@ -1289,7 +1289,6 @@ class SGLangRollout(BaseRollout):
         if prompt_ids.shape[-1] < self.config.prompt_length:
             prompt_ids = pad_sequence_to_length(prompt_ids, self.config.prompt_length, self.pad_token_id, left_pad=True)
         response_ids = pad_sequence(response_ids, batch_first=True, padding_value=self.pad_token_id)
-        response_length = response_ids.size(1)
         if response_ids.shape[-1] < self.config.response_length:
             response_ids = pad_sequence_to_length(response_ids, self.config.response_length, self.pad_token_id)
         prompt_attention_mask = pad_sequence(
@@ -1307,8 +1306,6 @@ class SGLangRollout(BaseRollout):
             response_attention_mask = pad_sequence_to_length(response_attention_mask, self.config.response_length, 0)
 
         # padding prompt_position_ids
-        # Change here, use the position_ids from the prepare batch, instead of req
-        prompt_position_ids = prompts.batch["position_ids"]
         if prompt_position_ids[0].dim() == 2:
             # if prompt_position_ids is a 2D tensor
             # e.g. from qwen2vl, prompt_position_ids.shape = (3, seq_len)
@@ -1321,19 +1318,6 @@ class SGLangRollout(BaseRollout):
             prompt_position_ids = pad_sequence(
                 prompt_position_ids, batch_first=True, padding_value=0, padding_side="left"
             )
-        
-        # Change here, prepare (bs, 4, seq_len) pos id for prompt
-        batch_size = prompt_ids.size(0)
-        delta_position_id = torch.arange(1, response_length + 1, device=prompt_position_ids.device)
-        delta_position_id = delta_position_id.unsqueeze(0).repeat(batch_size, 1)
-        if prompt_position_ids.dim() == 3:  # qwen2vl mrope (batch size, 4, seq len)
-            delta_position_id = delta_position_id.view(batch_size, 1, -1).expand(batch_size, prompt_position_ids.size(1), -1)
-
-        # TODO(sgm): fix position_ids on right_pad
-        # prompt: left pad + response: right pad
-        # attention_mask: [0,0,0,0,1,1,1,1, | 1,1,1,0,0,0,0,0]
-        # position_ids:   [0,0,0,0,0,1,2,3, | 4,5,6,7,8,9,10,11]
-        response_position_ids = prompt_position_ids[..., -1:] + delta_position_id
         if prompt_position_ids.shape[-1] < self.config.prompt_length:
             prompt_position_ids = pad_sequence_to_length(
                 prompt_position_ids, self.config.prompt_length, 0, left_pad=True
@@ -1371,6 +1355,13 @@ class SGLangRollout(BaseRollout):
         input_ids = torch.cat((prompt_ids, response_ids), dim=-1)
         attention_mask = torch.cat((prompt_attention_mask, response_attention_mask), dim=-1)
         position_ids = torch.cat((prompt_position_ids, response_position_ids), dim=-1)
+        # The req prepare 3d rope with 3 dim, verl needs an extra text position id for packing, duplicate on the first dimension
+        if position_ids.shape[1] == 3:
+            # (bs, 3, seq_len) -> (bs, 4, seq_len)
+            # (bs, seq_len) -> (bs, 1, seq_len)
+            text_position_ids = attention_mask.bool().cumsum(dim=-1).unsqueeze(1)
+            text_position_ids = text_position_ids - 1 # start from 0 for the text position ids
+            position_ids = torch.concatenate([text_position_ids, position_ids], dim=1)
 
         # Construct the batch data
         batch = TensorDict(
