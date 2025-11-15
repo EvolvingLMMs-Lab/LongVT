@@ -1173,7 +1173,8 @@ class SGLangRollout(BaseRollout):
             await asyncio.gather(*tool_creation_coroutines)
             # This will add an empty tool calling in messages, which is not expected
             # _req.add_tool_response_messages(
-            #     self.processing_class, [tool_result for _, tool_result in tool_creation_results]
+            #     self.processing_class,
+            #     [tool_result for _, tool_result in await asyncio.gather(*tool_creation_coroutines)],
             # )
         if _req.interaction_kwargs and self.interaction_map:
             interaction_kwargs = _req.interaction_kwargs
