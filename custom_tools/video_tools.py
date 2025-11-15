@@ -16,20 +16,18 @@ import base64
 import logging
 import os
 from io import BytesIO
-from typing import Optional, Tuple
+from typing import Optional
 from uuid import uuid4
 
+from fastmcp import Client
 from PIL import Image
 
 from verl.tools.mcp_base_tool import MCPBaseTool
 from verl.tools.schemas import OpenAIFunctionToolSchema, ToolResponse
+from verl.tools.utils.mcp_clients.utils import mcp2openai
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
-
-from fastmcp import Client
-
-from verl.tools.utils.mcp_clients.utils import mcp2openai
 
 
 # I don't know why, but official mcp client is not working and kept hanging.
@@ -49,14 +47,7 @@ class MCPClientDemo:
         """
         if self.client is None:
             # Configure local stdio server
-            config = {
-                "mcpServers": {
-                    "local_server": {
-                        "command": "python",
-                        "args": [self.server_path]
-                    }
-                }
-            }
+            config = {"mcpServers": {"local_server": {"command": "python", "args": [self.server_path]}}}
             self.client = Client(config)
 
     async def run(self):
@@ -65,18 +56,18 @@ class MCPClientDemo:
         :return: Tool list in OpenAI format
         """
         await self.initialize()
-        
+
         tool_schemas = []
         async with self.client:
             # Get all tool information registered by the server
             tools_response = await self.client.list_tools_mcp()
-            
+
             # Convert MCP tool format to OpenAI function call format
             for tool in tools_response.tools:
                 openai_tool = mcp2openai(tool)
                 tool_schemas.append(openai_tool)
                 print(openai_tool)
-        
+
         return tool_schemas
 
     async def run_tool(self, tool_name: str, tool_args: dict):
@@ -87,7 +78,7 @@ class MCPClientDemo:
         :return: Result of the tool execution.
         """
         await self.initialize()
-        
+
         async with self.client:
             result = await self.client.call_tool_mcp(tool_name, tool_args)
             return result
@@ -98,8 +89,8 @@ class VideoTools(MCPBaseTool):
         super().__init__(config, tool_schema)
         server_path = config.get("server_path")
         self.client = MCPClientDemo(server_path)
-    
-    async def create(self, instance_id: Optional[str] = None, **kwargs) -> Tuple[str, ToolResponse]:
+
+    async def create(self, instance_id: Optional[str] = None, **kwargs) -> tuple[str, ToolResponse]:
         """Create a tool instance.
 
         Args:

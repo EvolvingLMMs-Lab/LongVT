@@ -34,14 +34,7 @@ class MCPClientDemo:
         """
         if self.client is None:
             # 配置本地stdio服务端
-            config = {
-                "mcpServers": {
-                    "local_server": {
-                        "command": "python",
-                        "args": [self.server_path]
-                    }
-                }
-            }
+            config = {"mcpServers": {"local_server": {"command": "python", "args": [self.server_path]}}}
             self.client = Client(config)
 
     async def run(self):
@@ -50,18 +43,18 @@ class MCPClientDemo:
         :return: OpenAI格式的工具列表
         """
         await self.initialize()
-        
+
         tool_schemas = []
         async with self.client:
             # 获取服务端注册的所有工具信息
             tools_response = await self.client.list_tools_mcp()
-            
+
             # 将MCP工具格式转换为OpenAI函数调用格式
             for tool in tools_response.tools:
                 openai_tool = mcp2openai(tool)
                 tool_schemas.append(openai_tool)
                 print(openai_tool)
-        
+
         return tool_schemas
 
     async def run_tool(self, tool_name: str, tool_args: dict):
@@ -72,7 +65,7 @@ class MCPClientDemo:
         :return: Result of the tool execution.
         """
         await self.initialize()
-        
+
         async with self.client:
             result = await self.client.call_tool_mcp(tool_name, tool_args)
             return result
