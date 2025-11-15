@@ -57,7 +57,7 @@ from verl.third_party.sglang import parallel_state as sglang_ps
 from verl.tools.base_tool import BaseTool
 from verl.tools.schemas import OpenAIFunctionCallSchema, OpenAIFunctionParsedSchema, OpenAIFunctionToolCall
 from verl.tools.utils.tool_registry import initialize_tools_from_config
-from verl.utils.device import get_visible_devices_keyword
+from verl.utils.device import get_visible_devices_keyword, set_expandable_segments
 from verl.utils.net_utils import is_ipv6
 from verl.utils.profiler import GPUMemoryLogger
 from verl.utils.torch_functional import get_response_mask, pad_sequence_to_length
@@ -96,6 +96,25 @@ def _set_envs_and_config(server_args: ServerArgs):
     os.environ["TORCH_NCCL_AVOID_RECORD_STREAMS"] = "1"
     os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "4"
     os.environ["CUDA_MODULE_LOADING"] = "AUTO"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:False"
+
+    # Ensure the current process allocator respects the setting; children will inherit the env.
+    try:
+        set_expandable_segments(False)
+
+        cuda_memory = getattr(torch.cuda, "memory", None)
+        if cuda_memory is not None and hasattr(cuda_memory, "_set_allocator_settings"):
+            original_set_allocator_settings = cuda_memory._set_allocator_settings
+
+            def _patched_set_allocator_settings(config: str):
+                if isinstance(config, str) and "expandable_segments" in config:
+                    return original_set_allocator_settings("expandable_segments:False")
+                return original_set_allocator_settings(config)
+
+            if getattr(cuda_memory._set_allocator_settings, "__name__", "") != "_patched_set_allocator_settings":
+                cuda_memory._set_allocator_settings = _patched_set_allocator_settings
+    except Exception as exc:  # pragma: no cover - best effort safeguard
+        logger.warning("Failed to disable expandable segments for CUDA allocator: %s", exc)
 
     # Set prometheus env vars
     if server_args.enable_metrics:
@@ -925,22 +944,14 @@ class SGLangRollout(BaseRollout):
                     break
 
                 # Video support is not implemented yet
-                image_data = (
-                    _req.multi_modal_data["image"]
-                    if _req.multi_modal_data and "image" in _req.multi_modal_data
-                    else None
-                )
-                video_data = (
-                    _req.multi_modal_data["video"]
-                    if _req.multi_modal_data and "video" in _req.multi_modal_data
-                    else None
-                )
-                if video_data:
-                    logger.warning(
-                        "video support is not implemented yet, current length of video data is %d", len(video_data)
-                    )
+                image_data, video_data = self._extract_multi_modal_payload(_req)
 
-                output = await self._handle_engine_call(_req, request_sampling_params, image_data=image_data)
+                output = await self._handle_engine_call(
+                    _req,
+                    request_sampling_params,
+                    image_data=image_data,
+                    video_data=video_data,
+                )
                 if self.config.skip_tokenizer_init:
                     content_ids = output["output_ids"]
                     content = self.processing_class.decode(content_ids, skip_special_tokens=True)
@@ -1085,13 +1096,26 @@ class SGLangRollout(BaseRollout):
         return _req
 
     async def _handle_engine_call(
-        self, _req: AsyncRolloutRequest, sampling_params: dict, image_data: Optional[list[Any]] = None
+        self,
+        _req: AsyncRolloutRequest,
+        sampling_params: dict,
+        image_data: Optional[list[Any]] = None,
+        video_data: Optional[list[Any]] = None,
     ) -> dict:
         generation_prompt_ids = _req.get_generation_prompt_ids(self.processing_class)
-        return await self._handle_engine_generate(generation_prompt_ids, sampling_params, image_data)
+        return await self._handle_engine_generate(
+            generation_prompt_ids,
+            sampling_params,
+            image_data,
+            video_data,
+        )
 
     async def _handle_engine_generate(
-        self, generation_prompt_ids: list[int], sampling_params: dict, image_data: Optional[list[Any]] = None
+        self,
+        generation_prompt_ids: list[int],
+        sampling_params: dict,
+        image_data: Optional[list[Any]] = None,
+        video_data: Optional[list[Any]] = None,
     ) -> dict:
         max_new_tokens = min(self.config.response_length, self.config.max_model_len - len(generation_prompt_ids) - 1)
 
@@ -1105,8 +1129,37 @@ class SGLangRollout(BaseRollout):
             sampling_params=kwargs,
             return_logprob=return_logprob,
             image_data=image_data,
+            video_data=video_data,
         )
         return output
+
+    def _extract_multi_modal_payload(
+        self,
+        _req: AsyncRolloutRequest,
+    ) -> tuple[Optional[list[Any]], Optional[list[Any]]]:
+        image_data: Optional[list[Any]] = None
+        video_data: Optional[list[Any]] = None
+
+        if not _req.multi_modal_data:
+            return image_data, video_data
+
+        image_values = _req.multi_modal_data.get("image")
+        if image_values:
+            image_data = image_values
+
+        video_values = _req.multi_modal_data.get("video")
+        video_offsets = _req.multi_modal_data.get("video_image_offsets") if _req.multi_modal_data else None
+        if video_values and self._processor_accepts_video_batch() and not video_offsets:
+            video_data = video_values
+
+        return image_data, video_data
+
+    def _processor_accepts_video_batch(self) -> bool:
+        if not isinstance(self.processing_class, ProcessorMixin):
+            return False
+
+        processor_cls_name = self.processing_class.__class__.__name__
+        return "Qwen3VLProcessor" in processor_cls_name
 
     async def _handle_pending_state(self, _req: AsyncRolloutRequest) -> AsyncRolloutRequest:
         if _req.tool_schemas is not None:
@@ -1117,7 +1170,7 @@ class SGLangRollout(BaseRollout):
                 if tool.name == "image_zoom_in_tool":  # input the image
                     create_kwargs["images"] = _req.multi_modal_data
                 tool_creation_coroutines.append(tool.create(_req.request_id, **create_kwargs))
-            tool_creation_results = await asyncio.gather(*tool_creation_coroutines)
+            await asyncio.gather(*tool_creation_coroutines)
             # This will add an empty tool calling in messages, which is not expected
             # _req.add_tool_response_messages(
             #     self.processing_class, [tool_result for _, tool_result in tool_creation_results]
@@ -1355,12 +1408,13 @@ class SGLangRollout(BaseRollout):
         input_ids = torch.cat((prompt_ids, response_ids), dim=-1)
         attention_mask = torch.cat((prompt_attention_mask, response_attention_mask), dim=-1)
         position_ids = torch.cat((prompt_position_ids, response_position_ids), dim=-1)
-        # The req prepare 3d rope with 3 dim, verl needs an extra text position id for packing, duplicate on the first dimension
+        # The req prepares 3D RoPE with 3 dims
+        # VERL needs an extra text position id for packing, duplicated on the first dimension
         if position_ids.shape[1] == 3:
             # (bs, 3, seq_len) -> (bs, 4, seq_len)
             # (bs, seq_len) -> (bs, 1, seq_len)
             text_position_ids = attention_mask.bool().cumsum(dim=-1).unsqueeze(1)
-            text_position_ids = text_position_ids - 1 # start from 0 for the text position ids
+            text_position_ids = text_position_ids - 1  # start from 0 for the text position ids
             position_ids = torch.concatenate([text_position_ids, position_ids], dim=1)
 
         # Construct the batch data

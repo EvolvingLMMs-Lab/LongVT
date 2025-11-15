@@ -49,8 +49,16 @@ def get_rope_index(
     # like <t1> <vision_start> <frame1> <vision_end> <t2> <vision_start> <frame2> <vision_end>,
     # the video_grid_thw should also be split
     if video_grid_thw is not None:
+        video_grid_thw = video_grid_thw.clone()
         video_grid_thw = torch.repeat_interleave(video_grid_thw, video_grid_thw[:, 0], dim=0)
         video_grid_thw[:, 0] = 1
+
+    if image_grid_thw is not None:
+        # Handle sglang_video mode where videos are treated as images
+        image_grid_thw = image_grid_thw.clone()
+        if image_grid_thw.shape[0] > 0 and torch.any(image_grid_thw[:, 0] > 1):
+            image_grid_thw = torch.repeat_interleave(image_grid_thw, image_grid_thw[:, 0], dim=0)
+            image_grid_thw[:, 0] = 1
 
     if input_ids is not None and (image_grid_thw is not None or video_grid_thw is not None):
         if attention_mask is None:
@@ -146,6 +154,8 @@ def _get_input_embeds(
     image_mask, video_mask = None, None
     if pixel_values is not None:
         pixel_values = pixel_values.type(model.visual.dtype)
+        # Visual encoder uses the original grid_thw as provided by Processor
+        # Expansion is only needed in get_rope_index for position IDs calculation
         image_embeds, deepstack_image_embeds = model.visual(pixel_values, grid_thw=image_grid_thw)
         n_image_tokens = (input_ids == model.config.image_token_id).sum().item()
         n_image_features = image_embeds.shape[0]
@@ -164,6 +174,7 @@ def _get_input_embeds(
 
     if pixel_values_videos is not None:
         pixel_values_videos = pixel_values_videos.type(model.visual.dtype)
+        # Visual encoder uses the original grid_thw as provided by Processor
         video_embeds, deepstack_video_embeds = model.visual(pixel_values_videos, grid_thw=video_grid_thw)
         n_video_tokens = (input_ids == model.config.video_token_id).sum().item()
         n_video_features = video_embeds.shape[0]

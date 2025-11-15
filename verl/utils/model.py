@@ -17,6 +17,7 @@ Utilities to create common models from huggingface
 
 import os
 import re
+import sys
 import warnings
 from dataclasses import dataclass
 from typing import Optional
@@ -727,6 +728,13 @@ def extract_multi_modal_inputs(
                 if key not in multi_modal_inputs_collected:
                     multi_modal_inputs_collected[key] = []
                 multi_modal_inputs_collected[key].append(value)
+                if not getattr(extract_multi_modal_inputs, "_debug_logged", False) and key == "pixel_values":
+                    print(
+                        f"[MM_COLLECT] key={key} type={type(value)} shape="
+                        f"{tuple(value.shape) if isinstance(value, torch.Tensor) else None}"
+                    )
+                    sys.stdout.flush()
+                    extract_multi_modal_inputs._debug_logged = True
 
     for key, values in multi_modal_inputs_collected.items():
         if has_image_bound:  # minicpm-o logic

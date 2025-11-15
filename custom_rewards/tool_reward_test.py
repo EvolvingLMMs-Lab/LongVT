@@ -166,8 +166,13 @@ def compute_score(
 
         if kwargs.get("tool_use_reward", False) and extra:
             score_dict["tool_reward_score"] = extra[0]
-        elif (kwargs.get("use_time_reward", False) or kwargs.get("use_iou_reward", False)) and extra:
+        elif extra and (
+            kwargs.get("use_time_reward", False)
+            or kwargs.get("use_iou_reward", False)
+            or kwargs.get("use_tiou_reward", False)
+        ):
             score_dict["time_reward_score"] = extra[0]
+
     elif data_source in ["thinklite_eureka", "xince"]:
         from custom_rewards import vl_agent_test
 

@@ -243,8 +243,12 @@ class RLHFDataset(Dataset):
         messages = self._build_messages(row_dict)
         model_inputs = {}
 
+        supports_video_token = False
         if self.processor is not None:
             from verl.utils.dataset.vision_utils import process_image, process_video
+
+            if self.sglang_video and "Qwen3VLProcessor" in self.processor.__class__.__name__:
+                supports_video_token = True
 
             raw_prompt = self.processor.apply_chat_template(
                 messages, add_generation_prompt=True, tokenize=False, **self.apply_chat_template_kwargs
@@ -268,32 +272,63 @@ class RLHFDataset(Dataset):
                 # due to the video key is "video" instead of "videos" in vllm, we need to use "video" here
                 # link: https://github.com/vllm-project/vllm/blob/3c545c0c3b98ee642373a308197d750d0e449403/vllm/multimodal/parse.py#L205
                 if self.sglang_video:
-                    image_list = [to_pil_image(frame) for video in videos for frame in video]
-                    multi_modal_data["image"] = image_list
-                    new_messages = []
-                    for message in messages:
-                        new_content = []
-                        role = message["role"]
-                        video_count = 0
-                        for content in message["content"]:
-                            if content["type"] == "video":
-                                for i in range(videos[video_count].shape[0]):
-                                    new_content.append({"type": "image"})
-                            else:
-                                new_content.append(content)
-                        new_messages.append({"role": role, "content": new_content})
-                    messages = new_messages
+                    if not supports_video_token:
+                        image_list: list = []
+                        video_image_offsets: list[tuple[int, int]] = []
+                        for video in videos:
+                            start_index = len(image_list)
+                            num_frames = video.shape[0]
+                            video_image_offsets.append((start_index, num_frames))
+                            for frame in video:
+                                image_list.append(to_pil_image(frame))
+
+                        multi_modal_data["image"] = image_list
+                        # Preserve the original video tensors so we can faithfully reconstruct
+                        # the processor outputs (pixel values + grid) during rollout/validation.
+                        multi_modal_data["video"] = [video.numpy() for video in videos]
+                        multi_modal_data["video_image_offsets"] = video_image_offsets
+                        new_messages = []
+                        for message in messages:
+                            new_content = []
+                            role = message["role"]
+                            video_count = 0
+                            for content in message["content"]:
+                                if content["type"] == "video":
+                                    for _ in range(videos[video_count].shape[0]):
+                                        new_content.append({"type": "image"})
+                                else:
+                                    new_content.append(content)
+                            new_messages.append({"role": role, "content": new_content})
+                        messages = new_messages
+                    else:
+                        multi_modal_data.setdefault("video", [])
+                        multi_modal_data["video"].extend(video.numpy() for video in videos)
                 else:
                     multi_modal_data["video"] = [video.numpy() for video in videos]
 
-            model_inputs = self.processor(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
+            processor_kwargs = {"text": [raw_prompt], "return_tensors": "pt"}
+            if images is not None:
+                processor_kwargs["images"] = images
+            if videos is not None:
+                processor_kwargs["videos"] = videos
+
+            model_inputs = self.processor(**processor_kwargs)
             if self.sglang_video:
-                model_inputs["image_grid_thw"] = model_inputs.pop("video_grid_thw", None)
-                model_inputs["pixel_values"] = model_inputs.pop("pixel_values_videos", None)
+                video_grid_thw = model_inputs.pop("video_grid_thw", None)
+                if video_grid_thw is not None:
+                    # 同时保留原始视频网格，兼容后续仅识别 image_grid_thw 的逻辑
+                    model_inputs["video_grid_thw"] = video_grid_thw
+                    model_inputs["image_grid_thw"] = video_grid_thw
+
+                pixel_values_videos = model_inputs.pop("pixel_values_videos", None)
+                if pixel_values_videos is not None:
+                    # 训练阶段需要 pixel_values_videos，旧逻辑仍然读取 pixel_values
+                    model_inputs["pixel_values_videos"] = pixel_values_videos
+                    model_inputs["pixel_values"] = pixel_values_videos
 
             input_ids = model_inputs.pop("input_ids")
             attention_mask = model_inputs.pop("attention_mask")
-            if self.sglang_video:
+            if self.sglang_video and not supports_video_token:
                 image_tokens = self.processor.image_token
                 video_tokens = self.processor.video_token
                 image_tokens_id = self.processor.tokenizer.convert_tokens_to_ids(image_tokens)

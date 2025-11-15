@@ -232,12 +232,33 @@ class AsyncRolloutRequest(BaseModel):
         tokenize: bool = False,
         return_dict: bool = False,
     ):
+        messages_dicts = [msg.model_dump() if hasattr(msg, "model_dump") else dict(msg) for msg in messages]
+
+        messages_for_processing = messages_dicts
+        supports_video_tokens = False
+        has_video_offsets = bool(multi_modal_data.get("video_image_offsets")) if multi_modal_data else False
+        if isinstance(processing_class, ProcessorMixin):
+            supports_video_tokens = AsyncRolloutRequest._processor_supports_video(processing_class)
+            video_offsets = multi_modal_data.get("video_image_offsets") if multi_modal_data else None
+            if (
+                supports_video_tokens
+                and video_offsets
+                and multi_modal_data
+                and len(multi_modal_data.get("video", [])) > 0
+            ):
+                messages_for_processing = AsyncRolloutRequest._collapse_video_placeholders(
+                    messages_dicts, video_offsets
+                )
+
         raw_prompt = processing_class.apply_chat_template(
-            messages, tools=tools, add_generation_prompt=add_generation_prompt, tokenize=False
+            messages_for_processing, tools=tools, add_generation_prompt=add_generation_prompt, tokenize=False
         )
         if not tokenize:
             return raw_prompt
         # breakpoint()
+        video_token_id = getattr(processing_class, "video_token_id", None)
+        image_token_id = getattr(processing_class, "image_token_id", None)
+
         if isinstance(processing_class, PreTrainedTokenizer) or isinstance(processing_class, PreTrainedTokenizerFast):
             if any(len(values) > 0 for values in multi_modal_data.values()):
                 logger.warning(
@@ -246,9 +267,50 @@ class AsyncRolloutRequest(BaseModel):
             model_inputs = processing_class(text=[raw_prompt], return_tensors="pt")
         elif isinstance(processing_class, ProcessorMixin):
             # When we update multi_model_keys, we also need to update this logic
-            images = images if len(images := multi_modal_data.get("image", [])) > 0 else None
-            videos = videos if len(videos := multi_modal_data.get("video", [])) > 0 else None
-            model_inputs = processing_class(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
+            images_list = multi_modal_data.get("image", [])
+            videos_list = multi_modal_data.get("video", [])
+
+            videos = None
+            if supports_video_tokens and len(videos_list) > 0 and not has_video_offsets:
+                videos = videos_list
+
+            images = images_list if len(images_list) > 0 else None
+
+            processor_kwargs = {"text": [raw_prompt], "return_tensors": "pt"}
+            if images is not None:
+                processor_kwargs["images"] = images
+            if videos is not None:
+                processor_kwargs["videos"] = videos
+
+            model_inputs = processing_class(**processor_kwargs)
+
+            if videos is not None:
+                pixel_values_videos = model_inputs.pop("pixel_values_videos", model_inputs.pop("pixel_values", None))
+                video_grid_thw = model_inputs.pop("video_grid_thw", model_inputs.get("image_grid_thw"))
+
+                # 清理掉会触发图像分支的不匹配键
+                model_inputs.pop("pixel_values", None)
+                if pixel_values_videos is not None:
+                    model_inputs["pixel_values_videos"] = pixel_values_videos
+                if video_grid_thw is not None:
+                    model_inputs["video_grid_thw"] = video_grid_thw
+            else:
+                # 纯图像场景保留原逻辑
+                model_inputs.pop("video_grid_thw", None)
+                model_inputs.pop("pixel_values_videos", None)
+
+            if (
+                supports_video_tokens
+                and video_token_id is not None
+                and image_token_id is not None
+                and "input_ids" in model_inputs
+            ):
+                # rollout 阶段需要回退到真实视频 token，避免 features mismatch
+                input_ids_tensor = model_inputs["input_ids"].clone()
+                # 仅当当前 input_ids 中存在 video token 时才替换，保持图像样本不受影响
+                if (input_ids_tensor == image_token_id).any() and videos is not None:
+                    input_ids_tensor[input_ids_tensor == image_token_id] = video_token_id
+                model_inputs["input_ids"] = input_ids_tensor
         else:
             raise ValueError(f"Unsupported processing class type: {type(processing_class)}")
 
@@ -256,7 +318,16 @@ class AsyncRolloutRequest(BaseModel):
         if return_dict:
             return model_inputs
         else:
-            return model_inputs["input_ids"]
+            input_ids_tensor = model_inputs["input_ids"]
+            if (
+                (not supports_video_tokens or has_video_offsets)
+                and videos_list
+                and video_token_id is not None
+                and image_token_id is not None
+            ):
+                input_ids_tensor = input_ids_tensor.clone()
+                input_ids_tensor[input_ids_tensor == video_token_id] = image_token_id
+            return input_ids_tensor
 
     @staticmethod
     def _get_position_ids(
@@ -265,13 +336,17 @@ class AsyncRolloutRequest(BaseModel):
         attention_mask: torch.Tensor,
         multi_modal_inputs: Optional[dict[str, torch.Tensor]] = None,
     ) -> torch.Tensor:
-        # special case for qwen2vl
+        processor_cls_name = processing_class.__class__.__name__ if hasattr(processing_class, "__class__") else ""
+        is_qwen3vl = "Qwen3VLProcessor" in processor_cls_name
         is_qwen2vl = (
             hasattr(processing_class, "image_processor")
             and "Qwen2VLImageProcessor" in processing_class.image_processor.__class__.__name__
         )
-        if is_qwen2vl:
-            from verl.models.transformers.qwen2_vl import get_rope_index
+        if is_qwen3vl or is_qwen2vl:
+            if is_qwen3vl:
+                from verl.models.transformers.qwen3_vl import get_rope_index as get_rope_index_fn
+            else:
+                from verl.models.transformers.qwen2_vl import get_rope_index as get_rope_index_fn
 
             image_grid_thw = video_grid_thw = second_per_grid_ts = None
             if multi_modal_inputs:
@@ -285,7 +360,7 @@ class AsyncRolloutRequest(BaseModel):
             assert attention_mask.dim() == 2 and attention_mask.shape[0] == 1, (
                 f"attention_mask should be 2D with batch size 1, but got shape {attention_mask.shape}"
             )
-            new_position_ids = get_rope_index(
+            new_position_ids = get_rope_index_fn(
                 processing_class,
                 input_ids=input_ids.squeeze(0),
                 image_grid_thw=image_grid_thw,
@@ -296,6 +371,54 @@ class AsyncRolloutRequest(BaseModel):
             return new_position_ids  # (3, seq_len)
         else:
             return compute_position_id_with_mask(attention_mask)  # (1, seq_len)
+
+    @staticmethod
+    def _collapse_video_placeholders(
+        messages: list[dict[str, Any]],
+        video_offsets: list[tuple[int, int]],
+    ) -> list[dict[str, Any]]:
+        """Collapse consecutive image placeholders back into video placeholders based on offsets."""
+
+        if not video_offsets:
+            return messages
+
+        collapsed_messages: list[dict[str, Any]] = []
+        image_cursor = 0
+        video_idx = 0
+
+        for message in messages:
+            content = message.get("content")
+            if not isinstance(content, list):
+                collapsed_messages.append(message)
+                continue
+
+            new_content = []
+            idx = 0
+            while idx < len(content):
+                entry = content[idx]
+                if isinstance(entry, dict) and entry.get("type") == "image" and video_idx < len(video_offsets):
+                    start, length = video_offsets[video_idx]
+                    if image_cursor == start:
+                        new_content.append({"type": "video"})
+                        image_cursor += length
+                        idx += length
+                        video_idx += 1
+                        continue
+                if isinstance(entry, dict) and entry.get("type") == "image":
+                    image_cursor += 1
+                new_content.append(entry)
+                idx += 1
+
+            collapsed_messages.append({**message, "content": new_content})
+
+        return collapsed_messages
+
+    @staticmethod
+    def _processor_supports_video(processing_class: ProcessorMixin) -> bool:
+        if not isinstance(processing_class, ProcessorMixin):
+            return False
+
+        return "Qwen3VLProcessor" in processing_class.__class__.__name__
 
     def _update_input_ids(
         self,
@@ -455,6 +578,7 @@ class AsyncRolloutRequest(BaseModel):
                 if content.image:
                     content_list.extend([{"type": "image"} for _ in content.image])
                     delta_multi_modal_data["image"].extend(content.image)
+                    added_images_count += len(content.image)
                 if content.video:
                     content_list.extend([{"type": "video"} for _ in content.video])
                     delta_multi_modal_data["video"].extend(content.video)
@@ -465,9 +589,13 @@ class AsyncRolloutRequest(BaseModel):
         messages = [*BASE_CHAT_HISTORY, *self.messages[-len(contents) :]]
         tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
 
+        multi_modal_updated = False
         for key in self.multi_modal_keys:
             if len(delta_multi_modal_data[key]) > 0:
+                if key not in self.multi_modal_data:
+                    self.multi_modal_data[key] = []
                 self.multi_modal_data[key].extend(delta_multi_modal_data[key])
+                multi_modal_updated = True
 
         # We just passed the new multi-modal data to the chat template to update the input_ids.
         content_info = self._handle_apply_chat_template(
@@ -481,11 +609,6 @@ class AsyncRolloutRequest(BaseModel):
         )
         content_ids = content_info["input_ids"][..., self.base_conv_wo_gen_prompt_end_pos :]
 
-        # process multi_modal_inputs
-        multi_modal_inputs = content_info.copy()
-        multi_modal_inputs.pop("input_ids", None)
-        multi_modal_inputs.pop("attention_mask", None)
-
         # chat templates include generation prompt tokens (e.g., "<im_start>assistant\n")
         # So when tool response is added, we need to explicitly remove these tokens.
         self._remove_generation_prompt_ids_if_present()
@@ -495,8 +618,11 @@ class AsyncRolloutRequest(BaseModel):
             content_ids,
             attention_mask=True,
             loss_mask=False,
-            new_multi_modal_inputs=multi_modal_inputs,
+            new_multi_modal_inputs=None,
         )
+
+        if multi_modal_updated:
+            self._rebuild_multi_modal_inputs(processing_class)
 
         should_rollback = False
 
@@ -540,6 +666,39 @@ class AsyncRolloutRequest(BaseModel):
             return False
 
         return True
+
+    def _rebuild_multi_modal_inputs(
+        self,
+        processing_class: PreTrainedTokenizer | PreTrainedTokenizerFast | ProcessorMixin,
+    ) -> None:
+        if not self.multi_modal_data:
+            return
+
+        messages = [*BASE_CHAT_HISTORY, *self.messages]
+        tools = [tool.model_dump() for tool in self.tool_schemas] if self.tool_schemas else None
+
+        model_inputs = self._handle_apply_chat_template(
+            processing_class,
+            messages,
+            multi_modal_data=self.multi_modal_data,
+            tools=tools,
+            add_generation_prompt=False,
+            tokenize=True,
+            return_dict=True,
+        )
+
+        model_inputs = dict(model_inputs)
+        model_inputs.pop("input_ids", None)
+        model_inputs.pop("attention_mask", None)
+
+        processed_inputs: dict[str, torch.Tensor | Any] = {}
+        for key, value in model_inputs.items():
+            if isinstance(value, torch.Tensor):
+                processed_inputs[key] = value.clone()
+            else:
+                processed_inputs[key] = value
+
+        self.multi_modal_inputs = processed_inputs
 
     def _rollback_to_state(
         self,

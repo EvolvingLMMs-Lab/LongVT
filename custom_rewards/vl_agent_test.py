@@ -371,7 +371,10 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
                     pred_start, pred_end = last_crop_video
 
                     # get the ground truth time interval
-                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                    # Support both list and numpy array
+                    if (isinstance(ground_truth_time, list | tuple) or hasattr(ground_truth_time, "__len__")) and len(
+                        ground_truth_time
+                    ) == 2:
                         gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
 
                         # use recall to calculate the time reward (the same logic as compute_score_time_r1)
@@ -421,7 +424,10 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
                     pred_start, pred_end = last_crop_video
 
                     # get the ground truth time interval
-                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                    # Support both list and numpy array
+                    if (isinstance(ground_truth_time, list | tuple) or hasattr(ground_truth_time, "__len__")) and len(
+                        ground_truth_time
+                    ) == 2:
                         gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
 
                         # use IoU to calculate the time reward (the same logic as
@@ -478,7 +484,10 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None, **kwargs
                     pred_start, pred_end = last_crop_video
 
                     # get the ground truth time interval
-                    if isinstance(ground_truth_time, list) and len(ground_truth_time) == 2:
+                    # Support both list and numpy array
+                    if (isinstance(ground_truth_time, list | tuple) or hasattr(ground_truth_time, "__len__")) and len(
+                        ground_truth_time
+                    ) == 2:
                         gt_start, gt_end = float(ground_truth_time[0]), float(ground_truth_time[1])
 
                         # compute intersection

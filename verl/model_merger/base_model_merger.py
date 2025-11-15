@@ -291,10 +291,27 @@ class BaseModelMerger(ABC):
 
     def save_hf_model_and_tokenizer(self, state_dict: dict[str, torch.Tensor]):
         auto_model_class = self.get_transformers_auto_model_class()
-        with init_empty_weights():
-            model = auto_model_class.from_config(
-                self.model_config, torch_dtype=torch.bfloat16, trust_remote_code=self.config.trust_remote_code
-            )
+        init_kwargs = {"torch_dtype": torch.bfloat16}
+        if self.config.trust_remote_code:
+            init_kwargs["trust_remote_code"] = self.config.trust_remote_code
+
+        current_kwargs = init_kwargs.copy()
+        while True:
+            try:
+                with init_empty_weights():
+                    model = auto_model_class.from_config(self.model_config, **current_kwargs)
+                break
+            except TypeError as exc:
+                message = str(exc)
+                if "torch_dtype" in message and "torch_dtype" in current_kwargs:
+                    print("Warning: target AutoModel class does not accept 'torch_dtype'; removing and retrying.")
+                    current_kwargs.pop("torch_dtype")
+                    continue
+                if "trust_remote_code" in message and "trust_remote_code" in current_kwargs:
+                    print("Warning: target AutoModel class does not accept 'trust_remote_code'; removing and retrying.")
+                    current_kwargs.pop("trust_remote_code")
+                    continue
+                raise
         model.to_empty(device="cpu")
         model = self.patch_model_generation_config(model)
 
