@@ -129,7 +129,13 @@ def relax_exact_match(predict_str: str, ground_truth: str, relax_portion: float 
 
 
 def compute_score(
-    data_source, solution_str, ground_truth, extra_info=None, sandbox_fusion_url=None, concurrent_semaphore=None
+    data_source,
+    solution_str,
+    ground_truth,
+    extra_info=None,
+    sandbox_fusion_url=None,
+    concurrent_semaphore=None,
+    **kwargs,
 ):
     """Compute the score for a given solution based on the data source.
 
@@ -140,21 +146,92 @@ def compute_score(
         extra_info (dict, optional): Additional information that might be needed for scoring. Defaults to None.
         sandbox_fusion_url: Not used in this implementation.
         concurrent_semaphore: Not used in this implementation.
+        **kwargs: Additional keyword arguments, including use_recall for time-r1 scoring.
 
     Returns:
         dict: A dictionary containing the computed score and other metrics.
     """
+    # breakpoint()
     score_dict = {}
-    if data_source in ["vstar", "vl_agent", "chart", "longvideo-reason"]:
-        from custom_rewards import vl_agent
+    if data_source in ["vstar", "vl_agent", "chart", "longvideo-reason", "hacs", "ego4d_naq", "longvt"]:
+        from custom_rewards import vl_agent_test
 
-        score = vl_agent.compute_score(solution_str, ground_truth, extra_info)
+        score, acc_score, format_reward_score, *extra = vl_agent_test.compute_score(
+            solution_str, ground_truth, extra_info, **kwargs
+        )
+
         score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+
+        if kwargs.get("tool_use_reward", False) and extra:
+            score_dict["tool_reward_score"] = extra[0]
+        elif (kwargs.get("use_time_reward", False) or kwargs.get("use_iou_reward", False)) and extra:
+            score_dict["time_reward_score"] = extra[0]
     elif data_source in ["thinklite_eureka", "xince"]:
-        from custom_rewards import vl_agent
+        from custom_rewards import vl_agent_test
 
-        score = vl_agent.compute_score_math(solution_str, ground_truth, extra_info)
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_math(solution_str, ground_truth, extra_info)
         score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+    elif data_source in ["longvt-val"]:
+        from custom_rewards import vl_agent_test
+
+        # val score
+        score, acc_score, format_reward_score, *extra = vl_agent_test.compute_score(
+            solution_str, ground_truth, extra_info, **kwargs
+        )
+        score_dict["score"] = acc_score
+    elif data_source in ["videor1"]:
+        from custom_rewards import vl_agent_test
+
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_videor1(
+            solution_str, ground_truth, extra_info, **kwargs
+        )
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+
+        # Add dummy values for optional reward fields to maintain batch consistency
+        # Use -1.0 as a special dummy value (videor1 doesn't support these rewards)
+        # This maintains tensor compatibility while clearly marking unsupported features
+        if kwargs.get("tool_use_reward", False):
+            score_dict["tool_reward_score"] = -1.0  # videor1 doesn't have tool rewards
+        elif kwargs.get("use_time_reward", False) or kwargs.get("use_iou_reward", False):
+            score_dict["time_reward_score"] = -1.0  # videor1 doesn't have time/iou rewards
+    elif data_source in ["time-r1"]:
+        from custom_rewards import vl_agent_test
+
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_time_r1(
+            solution_str, ground_truth, extra_info, use_recall=False
+        )
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+        score_dict["time_reward_score"] = -1.0  # dummy time reward
+    elif data_source == "TimeR1" or data_source.startswith("TVG-R1"):
+        from custom_rewards import vl_agent_test
+
+        # read use_recall from kwargs, default to False
+        use_recall = kwargs.get("use_recall", False)
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_time_r1(
+            solution_str, ground_truth, extra_info, use_recall=use_recall
+        )
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
+        # dummy time_reward_score
+        score_dict["time_reward_score"] = -1.0
+    elif data_source in ["longvideo-reason-think"]:
+        from custom_rewards import vl_agent_test
+
+        score, acc_score, format_reward_score = vl_agent_test.compute_score_think(
+            solution_str, ground_truth, extra_info
+        )
+        score_dict["score"] = score
+        score_dict["acc_score"] = acc_score
+        score_dict["format_reward_score"] = format_reward_score
     else:
         format_score = 0.1
         format_reward_score = format_reward(solution_str)

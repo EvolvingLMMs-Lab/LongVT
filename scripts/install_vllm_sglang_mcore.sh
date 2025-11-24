@@ -7,14 +7,14 @@ export MAX_JOBS=32
 
 echo "1. install inference frameworks and pytorch they need"
 if [ $USE_SGLANG -eq 1 ]; then
-    pip install "sglang[all]==0.4.6.post1" --no-cache-dir --find-links https://flashinfer.ai/whl/cu124/torch2.6/flashinfer-python && pip install torch-memory-saver --no-cache-dir
+    pip install "sglang[all]==0.4.6.post5" --no-cache-dir --find-links https://flashinfer.ai/whl/cu124/torch2.6/flashinfer-python && pip install torch-memory-saver --no-cache-dir
 fi
-pip install --no-cache-dir "vllm==0.8.5.post1" "torch==2.6.0" "torchvision==0.21.0" "torchaudio==2.6.0" "tensordict==0.6.2" torchdata
+pip install --no-cache-dir "torch==2.6.0" "torchvision==0.21.0" "torchaudio==2.6.0" "tensordict==0.6.2" torchdata
 
 echo "2. install basic packages"
-pip install "transformers[hf_xet]>=4.51.0" accelerate datasets peft hf-transfer \
-    "numpy<2.0.0" "pyarrow>=15.0.0" pandas \
-    ray[default] codetiming hydra-core pylatexenc qwen-vl-utils wandb dill pybind11 liger-kernel mathruler \
+pip install "transformers[hf_xet]==4.51.1" accelerate datasets peft==0.16.0 hf-transfer \
+    "numpy<2.0.0" "pyarrow>=15.0.0" pandas fastmcp \
+    ray[default]==2.47.1 codetiming hydra-core pylatexenc qwen-vl-utils wandb dill pybind11 liger-kernel mathruler \
     pytest py-spy pyext pre-commit ruff
 
 pip install "nvidia-ml-py>=12.560.30" "fastapi[standard]>=0.115.0" "optree>=0.13.0" "pydantic>=2.9" "grpcio>=1.62.1"
@@ -40,8 +40,10 @@ if [ $USE_MEGATRON -eq 1 ]; then
 fi
 
 
-echo "5. May need to fix opencv"
-pip install opencv-python
+#echo "5. May need to fix opencv"
+pip install opencv-python==4.11.0.86
+pip install "numpy<2.0.0"
+pip install  uvloop==0.21.0 
 pip install opencv-fixer && \
     python -c "from opencv_fixer import AutoFix; AutoFix()"
 
