@@ -58,7 +58,7 @@ We provide our source `verl` code, which is a detached fork from the original [v
 ```bash
 conda create -n longvideotool python==3.10
 conda activate longvideotool
-git clone xxxx
+https://github.com/EvolvingLMMs-Lab/LongVT.git
 ```
 
 Then install RL training pipeline:
