@@ -78,6 +78,7 @@ pip install --no-deps -e .
 ```
 Note: If you encounter any issues during execution, please refer to requirement_reproduce.txt to verify your dependency versions.
 
+We also include a verl_0.6 branch in this repository. For environment installation regarding this branch, please refer to the official verl v0.6 documentation. However, please note that we strictly recommend using the main branch (as detailed above) for reliable reproduction, as the 0.6 branch may have consistency issues.
 
 ### 3. Evaluation
 
