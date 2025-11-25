@@ -13,7 +13,7 @@
 
 ## 🎉 News
 
-- **[2025-11]**: Join our WeChat group by scanning this [QR code](assets/wechat_qr.jpg).
+- **[2025-11]**: Join our WeChat group by scanning this [QR code](assets/qr_code.jpg).
 - **[2025-11]**: We release all of our code, model, data, and pipeline! Check out the [OpenMMReasoner collection on Hugging Face](https://huggingface.co/collections/lmms-lab/openmmreasoner).
 
 ## Table of Contents
