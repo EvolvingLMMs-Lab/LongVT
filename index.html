@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="LongVT: Incentivizing &quot;Thinking with Long Videos&quot; via Native Tool Calling.">
+    <meta property="og:title" content="LongVT: Incentivizing &quot;Thinking with Long Videos&quot; via Native Tool Calling">
+    <meta property="og:description" content="LongVT: Incentivizing &quot;Thinking with Long Videos&quot; via Native Tool Calling.">
+    <meta property="og:url" content="https://github.com/EvolvingLMMs-Lab/LongVT/">
+    <meta property="og:image" content="static/images/uniir_teaser.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <title>LongVT</title>
+
+    <link rel="icon" type="image/x-icon" href="">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro">
+    <link rel="stylesheet" href="static/css/bulma.min.css">
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="static/css/index.css">
+    <link rel="stylesheet" href="static/css/jquery.dataTables.css">
+
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/jquery-3.5.1.js"></script>
+    <script src="static/js/jquery.dataTables.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/fontawesome.all.min.js" defer></script>
+    <script src="static/js/bulma-carousel.min.js"></script>
+    <script src="static/js/bulma-slider.min.js"></script>
+    <script src="static/js/index.js"></script>
+
+    <style>
+        .buttonGroup {
+            text-align: center;
+        }
+        .buttonGroup > button {
+            padding: 15px;
+            color: white;
+            background-color: #363636;
+            border-radius: 5px;
+        }
+        .buttonGroup > button:hover {
+            box-shadow: 5px;
+        }
+        .icon-emoji {
+            font-size: 1.1em;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .text-green {
+            color: #16a34a;
+        }
+        .text-red {
+            color: #dc2626;
+        }
+        .subtitle code {
+            background-color: #f5f5f5;
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+            color: #333;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .table th,
+        .table td,
+        .table thead th,
+        .table tbody td {
+            vertical-align: middle !important;
+            text-align: center !important;
+        }
+        .table tbody td.text-left {
+            text-align: left !important;
+        }
+        .table tbody td.text-right {
+            text-align: right !important;
+        }
+        .table thead th {
+            background-color: #f5f5f5;
+        }
+        .table tr.section-header td {
+            border: none !important;
+            background-color: transparent !important;
+            padding-top: 0.8rem;
+            padding-bottom: 0.3rem;
+        }
+        .section.hero.is-light {
+            padding: 0.75rem 0;
+        }
+        .section.hero.is-light .title {
+            margin-bottom: 0 !important;
+            white-space: nowrap;
+        }
+        .section.hero.is-light .title.wrap-title {
+            white-space: normal !important;
+        }
+        .section.hero.is-light .title.with-margin {
+            margin-bottom: 0.75rem !important;
+        }
+    </style>
+</head>
+
+<body>
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column has-text-centered">
+                        <h1 class="title is-1 vj-hero-title-cyber">
+                            LongVT: Incentivizing "Thinking with Long Videos" via Native Tool Calling
+                        </h1>
+
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block"><a href="https://mwxely.github.io/" target="_blank">Zuhao Yang</a><sup>*,1,2,5</sup>,</span>
+                            <span class="author-block"><a href="https://xiao4579.github.io/" target="_blank">Sudong Wang</a><sup>*,1,3,5</sup>,</span>
+                            <span class="author-block"><a href="https://kcz358.github.io/" target="_blank">Kaichen Zhang</a><sup>*,1,2,5</sup>,</span>
+                            <span class="author-block"><a href="https://kemingwu.github.io/" target="_blank">Keming Wu</a><sup>1,4,5</sup>,</span>
+                            <span class="author-block"><a href="https://lengsicong.github.io/" target="_blank">Sicong Leng</a><sup>2</sup>,</span>
+                            <span class="author-block"><a href="https://sites.google.com/view/yifan-zhang" target="_blank">Yifan Zhang</a><sup>1</sup>,</span>
+                            <span class="author-block"><a href="https://qcwthu.github.io/" target="_blank">Chengwei Qin</a><sup>3</sup>,</span>
+                            <span class="author-block"><a href="https://scholar.google.com.sg/citations?user=uYmK-A0AAAAJ&hl=en" target="_blank">Shijian Lu</a><sup>✉️,2</sup>,</span>
+                            <span class="author-block"><a href="https://xingxuanli.github.io/" target="_blank">Xingxuan Li</a><sup>✉️,1</sup>,</span>
+                            <span class="author-block"><a href="https://lidongbing.github.io/" target="_blank">Lidong Bing</a><sup>1</sup></span>
+                        </div>
+
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block">
+                                <sup>1</sup>MiroMind AI,
+                                <sup>2</sup>Nanyang Technological University,
+                                <sup>3</sup>Hong Kong University of Science and Technology (Guangzhou),
+                                <sup>4</sup>Tsinghua Univerisity,
+                                <sup>5</sup>LMMs-Lab Team
+                            </span>
+                            <br>
+                            <span class="author-block"><sup>*</sup> Equal Contribution</span>
+                            &nbsp;&nbsp;&nbsp;
+                            <span class="author-block"><sup>✉️</sup> Corresponding Author</span>
+                            <br>
+                            <span class="author-block">Email Contact:</span>
+                            <span class="author-block">
+                                <a href="mailto:yang0756@e.ntu.edu.sg">yang0756@e.ntu.edu.sg</a>,
+                                <a href="mailto:swang886@connect.hkust-gz.edu.cn">swang886@connect.hkust-gz.edu.cn</a>,
+                                <a href="mailto:zhan0564@e.ntu.edu.sg">zhan0564@e.ntu.edu.sg</a>
+                            </span>
+                        </div>
+
+                        <div class="column has-text-centered">
+                            <div class="publication-links">
+                                <span class="link-block">
+                                    <a href="https://arxiv.org/abs/2511.16334" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon"><i class="ai ai-arxiv"></i></span>
+                                        <span>arXiv</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="https://github.com/EvolvingLMMs-Lab/LongVT" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon"><i class="fab fa-github"></i></span>
+                                        <span>Code</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="https://huggingface.co/longvideotool" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon"><i class="fas fa-database"></i></span>
+                                        <span>Data</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="https://huggingface.co/longvideotool" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon icon-emoji">🤗</span>
+                                        <span>Model</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="#" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <svg viewBox="-3.5 -3.5 7 7" width="1.5em" height="1.5em" style="vertical-align: -0.2em;">
+                                                <g transform="rotate(90)" stroke="#367DBD" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <circle cx="0" cy="0" r="2.9" stroke-width="0.55"/>
+                                                    <circle cx="-1.1" cy="1.0" r="0.55" stroke-width="0.48"/>
+                                                    <circle cx="-1.1" cy="-1.0" r="0.55" stroke-width="0.48"/>
+                                                    <line x1="-1.1" y1="0.42" x2="0" y2="0" stroke-width="0.48"/>
+                                                    <line x1="-1.1" y1="-0.42" x2="0" y2="0" stroke-width="0.48"/>
+                                                    <line x1="0" y1="0" x2="1.6" y2="1.05" stroke-width="0.48"/>
+                                                    <line x1="0" y1="0" x2="1.6" y2="-1.05" stroke-width="0.48"/>
+                                                    <circle cx="0" cy="0" r="0.18" fill="#367DBD"/>
+                                                </g>
+                                            </svg>
+                                        </span>
+                                        <span>Demo</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="https://huggingface.co/OpenMMReasoner/OpenMMReasoner-RL" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon icon-emoji">🚀</span>
+                                        <span>Daily Paper</span>
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h1 class="title is-3 with-margin">Contributions</h1>
+                    <div class="content has-text-justified">
+                        <p>
+                            <b>(1) LongVT: An End-to-End Agentic Framework for "Thinking with Long Videos"</b><br>
+                            We introduce a novel paradigm that natively interleaves multimodal tool-augmented Chain-of-Thought (CoT) with on-demand clip inspection over hours-long videos, thereby enabling large multimodal models (LMMs) to perform more effective and reliable long-video reasoning.
+                        </p>
+                        <p>
+                            <b>(2) VideoSIAH: A Fine-Grained Data Suite for Evidence-Sparse Long-Video Reasoning</b><br>
+                            We construct a scalable data pipeline that produces diverse and high-quality question-answering (QA) data and tool-integrated reasoning traces, and a dedicated benchmark under a video segment-in-a-haystack setting.
+                        </p>
+                        <p>
+                            <b>(3) LongVT-7B-RFT: A State-of-the-Art Baseline with Invaluable Insights</b><br>
+                            Through extensive quantitative comparisons, systematic ablations on data recipes, training strategies, and design choices, as well as in-depth analyses of training dynamics, we establish and open-source a powerful baseline model with "thinking with long videos" capabilities.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <div class="item">
+                            <img src="static/images/teaser.png" alt="LongVT-Teaser">
+                            <h2 class="subtitle has-text-justified">
+                                <b>Interleaved Multimodal Chain-of-Tool-Thought (iMCoTT).</b>
+                                Compared to prior text-based CoT reasoning, iMCoTT in our proposed <b>LongVT</b> can <b>natively</b> perform self-reflection via <b>calling</b> <code>crop_video(start_time, end_time)</code> <b>tool</b>.
+                                It <span class="text-green">proposes</span> a <span class="text-green">time window</span> after a global preview, proactively <span class="text-green">fetches</span> the corresponding <span class="text-green">short clip</span>, <span class="text-green">rethinks</span> based on the <span class="text-green">new evidence</span>, and <span class="text-green">determines</span> whether to <span class="text-green">refine</span> or <span class="text-green">answer directly</span>.
+                                Such tool-augmented reasoning behaviors ground each step in what is actually seen rather than <span class="text-red">blindly rephrasing</span> in text-only CoT, which mitigates <span class="text-red">hallucination</span> and leads to <span class="text-green">enhanced temporal localization</span> and <span class="text-green">answer correctness</span>.
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- VideoSIAH: Motivation & Evidence -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3 wrap-title with-margin">What Motivates VideoSIAH? Unveiling the Data Contamination in Qwen-VL Series</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            Long-video reasoning presents a fundamentally different challenge from previous video QA settings: LMMs must locate sparse, fine-grained, and causally decisive moments embedded within hours-long content. However, existing tool-augmented LMMs are mostly trained with coarse-grained and clip-level data. This mismatch leaves modern LMMs lacking the supervision needed to learn how temporal hypotheses are formed, verified, or revised—a critical yet underexplored capability for agentic long-video reasoning.
+                        </p>
+                        <p>
+                            Moreover, most existing video understanding benchmarks only offer <em>multiple-choice QAs</em>, which can be solved without genuine temporal grounding and are vulnerable to <em>dataset leakage</em> or shortcut exploitation. To fill this gap, we introduce <b>VideoSIAH</b>, a large-scale, diverse, and high-quality data suite that serves collectively as a training dataset capturing the reasoning dynamics required for video segment-in-a-haystack QA, and a fine-grained evaluation benchmark, <b>VideoSIAH-Eval</b>, with human-in-the-loop validation for long-video open-ended question-answering.
+                        </p>
+                        <p>
+                            We conduct a rigorous contamination study on the Qwen-VL series across two probing settings: <b>(1)</b> <em>No Visual</em>, where we feed the text prompt without video frames to test for direct memorization; <b>(2)</b> <em>Rearranged Choices</em>, where we randomize the mapping between option labels and their textual content for multiple-choice questions to detect label memorization. Our experimental results reveal significant vulnerabilities in existing benchmarks and highlight the necessity of our proposed VideoSIAH-Eval.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <div class="table-container">
+                            <table class="table is-bordered is-striped is-hoverable is-fullwidth">
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2"><b>Setting</b></th>
+                                        <th><b>VideoMME</b></th>
+                                        <th colspan="3" class="has-text-centered"><b>VideoMMMU</b></th>
+                                        <th><b>VideoSIAH-Eval</b></th>
+                                    </tr>
+                                    <tr>
+                                        <th>w/o subtitle</th>
+                                        <th>adaptation</th>
+                                        <th>comprehension</th>
+                                        <th>perception</th>
+                                        <th>test</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="6"><b>Qwen2.5-VL-7B-Instruct</b></td></tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left">Original</td>
+                                        <td><b>64.3</b></td>
+                                        <td><b>35.7</b></td>
+                                        <td><b>44.3</b></td>
+                                        <td><u>56.7</u></td>
+                                        <td><b>33.8</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">No Visual</td>
+                                        <td>40.1</td>
+                                        <td>25.7</td>
+                                        <td>38.3</td>
+                                        <td>39.3</td>
+                                        <td><u>12.7</u></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Rearranged Choices</td>
+                                        <td><u>56.0</u></td>
+                                        <td><u>29.7</u></td>
+                                        <td><u>40.3</u></td>
+                                        <td><b>67.0</b></td>
+                                        <td>-</td>
+                                    </tr>
+                                    <tr><td colspan="6"><b>Qwen3-VL-8B-Instruct</b></td></tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left">Original</td>
+                                        <td><b>69.3</b></td>
+                                        <td><b>40.7</b></td>
+                                        <td><b>60.3</b></td>
+                                        <td><b>71.3</b></td>
+                                        <td><b>46.6</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">No Visual</td>
+                                        <td>44.1</td>
+                                        <td>33.7</td>
+                                        <td>39.3</td>
+                                        <td>46.7</td>
+                                        <td><u>0.00</u></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Rearranged Choices</td>
+                                        <td><u>69.0</u></td>
+                                        <td><u>36.3</u></td>
+                                        <td><u>47.7</u></td>
+                                        <td><u>69.3</u></td>
+                                        <td>-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="has-text-justified is-size-6">
+                            <b>Contamination Tests for Qwen-VL Series on Long Video Understanding and Reasoning Benchmarks.</b> The best result in each block column is in <b>bold</b>, and the second-best is <u>underlined</u>. The VideoSIAH-Eval column shows "-" entries for Rearranged Choices since our proposed benchmark is fully open-ended QA, where random option-answer mapping is not applicable.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Pipeline -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Data Pipeline</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <img src="static/images/pipeline.png" alt="VideoSIAH Data Pipeline">
+                        <p class="has-text-justified is-size-6">
+                            <b>Data Pipeline of VideoSIAH.</b> We construct a semi-automatic data pipeline that integrates several state-of-the-art LMMs to sequentially perform long video segmentation, video clip captioning, segment-in-a-haystack QA generation, cross-modal QA filtering, and iMCoTT generation. Icons with human silhouettes denote human-in-the-loop validation, where annotators inspect a small set of representative failures to refine prompting rules for QA generation, QA filtering, and iMCoTT generation. Note that iMCoTT traces are generated only for the cold-start supervised fine-tuning (SFT) stage, whereas reinforcement learning (RL) operates solely on the filtered QA pairs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dataset Statistics -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Dataset Statistics</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <div class="table-container">
+                            <table class="table is-bordered is-striped is-hoverable is-fullwidth">
+                                <thead>
+                                    <tr>
+                                        <th><b>Split</b></th>
+                                        <th><b>Source</b></th>
+                                        <th><b>Purpose</b></th>
+                                        <th class="has-text-right"><b>Samples</b></th>
+                                        <th class="has-text-right"><b>Total</b></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td rowspan="3"><b>SFT (w/o tool)</b></td>
+                                        <td class="text-left">LongVideo-Reason CoT</td>
+                                        <td class="text-left">Reasoning-augmented Open-ended QA</td>
+                                        <td class="text-right">5,238</td>
+                                        <td rowspan="3" class="text-right"><b>228,835</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Video-R1 CoT</td>
+                                        <td class="text-left">Reasoning-augmented Video QA</td>
+                                        <td class="text-right">165,575</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Image-based CoT</td>
+                                        <td class="text-left">Reasoning-augmented Image QA</td>
+                                        <td class="text-right">58,022</td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="2"><b>SFT (w/ tool)</b></td>
+                                        <td class="text-left">Gemini-distilled iMCoTT</td>
+                                        <td class="text-left">Tool-augmented Open-ended QA</td>
+                                        <td class="text-right">12,766</td>
+                                        <td rowspan="2" class="text-right"><b>19,161</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Qwen-distilled iMCoTT</td>
+                                        <td class="text-left">Tool-augmented Temporal Grounding</td>
+                                        <td class="text-right">6,395</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>RL</b></td>
+                                        <td class="text-left">Gemini-distilled QAs</td>
+                                        <td class="text-left">Open-ended QA over Long Videos</td>
+                                        <td class="text-right">1,667</td>
+                                        <td rowspan="2" class="text-right"><b>17,020</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>RFT</b></td>
+                                        <td class="text-left">Self-distilled iMCoTT</td>
+                                        <td class="text-left">Agentic Behaviors</td>
+                                        <td class="text-right">15,353</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="has-text-justified is-size-6">
+                            <b>Dataset Statistics of VideoSIAH.</b> Our proposed dataset contains a large-scale of non-tool SFT data, tool-augmented SFT data, RL QAs, and self-distilled reinforcement fine-tuning (RFT) traces.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-half has-text-centered">
+                        <img src="static/images/video_category.png" alt="Video Category Distribution">
+                    </div>
+                    <div class="column is-half has-text-centered">
+                        <img src="static/images/question_category.png" alt="Question Category Distribution">
+                    </div>
+                </div>
+                <p class="has-text-justified is-size-6">
+                    <b>Category Distribution of VideoSIAH-Eval.</b> We present the distribution of video types (a) and question types (b), highlighting the diversity of our proposed benchmark.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experiments: Main Results -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Quantitative Comparisons</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <div class="table-container">
+                            <table class="table is-bordered is-striped is-hoverable is-fullwidth is-size-7">
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">Model</th>
+                                        <th rowspan="2">Reasoning<br>Prompt</th>
+                                        <th rowspan="2">Tool<br>Calling</th>
+                                        <th>VideoMME<br>(≈1018 sec)</th>
+                                        <th colspan="3">VideoMMMU (≈506 sec)</th>
+                                        <th rowspan="2">LVBench<br>(≈4101 sec)</th>
+                                        <th rowspan="2">VideoSIAH-Eval<br>(≈1688 sec)</th>
+                                        <th rowspan="2">Average<br>Score</th>
+                                    </tr>
+                                    <tr>
+                                        <th>w/ subtitle</th>
+                                        <th>adaptation</th>
+                                        <th>comprehension</th>
+                                        <th>perception</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="section-header"><td colspan="10"><b>Proprietary LMMs</b></td></tr>
+                                    <tr>
+                                        <td class="text-left">GPT-4o</td>
+                                        <td>✗</td>
+                                        <td>✗</td>
+                                        <td style="color:#888">77.2<sup>†</sup></td>
+                                        <td style="color:#888">66.0<sup>†</sup></td>
+                                        <td style="color:#888">62.0<sup>†</sup></td>
+                                        <td style="color:#888">55.7<sup>†</sup></td>
+                                        <td style="color:#888">30.8<sup>†</sup></td>
+                                        <td style="color:#888">17.4</td>
+                                        <td style="color:#888">51.5</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Gemini 1.5 Pro</td>
+                                        <td>✗</td>
+                                        <td>✗</td>
+                                        <td style="color:#888">81.3<sup>†</sup></td>
+                                        <td style="color:#888">59.0<sup>†</sup></td>
+                                        <td style="color:#888">53.3<sup>†</sup></td>
+                                        <td style="color:#888">49.3<sup>†</sup></td>
+                                        <td style="color:#888">33.1<sup>†</sup></td>
+                                        <td>-</td>
+                                        <td style="color:#888">55.2</td>
+                                    </tr>
+                                    <tr class="section-header"><td colspan="10"><b>Open-Source LMMs with Sparse Frame Sampling</b></td></tr>
+                                    <tr>
+                                        <td class="text-left">Qwen2.5-VL-7B</td>
+                                        <td>✗</td>
+                                        <td>✗</td>
+                                        <td><u>62.6</u></td>
+                                        <td><u>37.3</u></td>
+                                        <td>28.0</td>
+                                        <td>36.7</td>
+                                        <td>30.7</td>
+                                        <td><u>28.1</u></td>
+                                        <td>37.2</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Video-R1-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>61.0</td>
+                                        <td>36.3</td>
+                                        <td>40.7</td>
+                                        <td>52.3</td>
+                                        <td>37.2</td>
+                                        <td>27.9</td>
+                                        <td><u>42.6</u></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">VideoRFT-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>60.9</td>
+                                        <td>36.7</td>
+                                        <td>42.0</td>
+                                        <td><u>53.0</u></td>
+                                        <td>34.7</td>
+                                        <td>26.5</td>
+                                        <td>42.3</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Video-Thinker-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>61.0</td>
+                                        <td>34.3</td>
+                                        <td><u>44.7</u></td>
+                                        <td><u>53.0</u></td>
+                                        <td><b>52.2</b></td>
+                                        <td>10.4</td>
+                                        <td><u>42.6</u></td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left">LongVT-7B-SFT (Ours)</td>
+                                        <td>✓</td>
+                                        <td>✓</td>
+                                        <td>12.5</td>
+                                        <td><b>37.7</b></td>
+                                        <td><b>46.0</b></td>
+                                        <td><b>58.3</b></td>
+                                        <td>36.0</td>
+                                        <td>26.8</td>
+                                        <td>36.2</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>LongVT-7B-RL (Ours)</b></td>
+                                        <td>✓</td>
+                                        <td>✓</td>
+                                        <td><b>66.1</b></td>
+                                        <td>32.7</td>
+                                        <td><u>44.7</u></td>
+                                        <td>50.0</td>
+                                        <td><u>37.8</u></td>
+                                        <td><b>31.0</b></td>
+                                        <td><b>43.7</b></td>
+                                    </tr>
+                                    <tr class="section-header"><td colspan="10"><b>Open-Source LMMs with Dense Frame Sampling</b></td></tr>
+                                    <tr>
+                                        <td class="text-left">Qwen2.5-VL-7B</td>
+                                        <td>✗</td>
+                                        <td>✗</td>
+                                        <td>64.3</td>
+                                        <td>35.7</td>
+                                        <td><b>44.3</b></td>
+                                        <td><b>56.7</b></td>
+                                        <td>40.9</td>
+                                        <td>33.8</td>
+                                        <td>46.0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Video-R1-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>60.5</td>
+                                        <td><u>37.3</u></td>
+                                        <td>38.7</td>
+                                        <td>46.3</td>
+                                        <td>40.1</td>
+                                        <td>33.1</td>
+                                        <td>42.7</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">VideoRFT-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>49.2</td>
+                                        <td><b>37.7</b></td>
+                                        <td>40.7</td>
+                                        <td>48.7</td>
+                                        <td>18.7</td>
+                                        <td>26.9</td>
+                                        <td>37.0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">Video-Thinker-7B</td>
+                                        <td>✓</td>
+                                        <td>✗</td>
+                                        <td>60.8</td>
+                                        <td><b>37.7</b></td>
+                                        <td>42.7</td>
+                                        <td>55.3</td>
+                                        <td><b>54.3</b></td>
+                                        <td>6.6</td>
+                                        <td>42.9</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left">LongVT-7B-SFT (Ours)</td>
+                                        <td>✓</td>
+                                        <td>✓</td>
+                                        <td>64.9</td>
+                                        <td>32.3</td>
+                                        <td>42.0</td>
+                                        <td>49.7</td>
+                                        <td>41.1</td>
+                                        <td>34.8</td>
+                                        <td>44.1</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left">LongVT-7B-RL (Ours)</td>
+                                        <td>✓</td>
+                                        <td>✓</td>
+                                        <td><u>66.1</u></td>
+                                        <td><b>37.7</b></td>
+                                        <td>42.3</td>
+                                        <td><u>56.3</u></td>
+                                        <td><u>41.4</u></td>
+                                        <td><u>35.9</u></td>
+                                        <td><u>46.6</u></td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>LongVT-7B-RFT (Ours)</b></td>
+                                        <td>✓</td>
+                                        <td>✓</td>
+                                        <td><b>67.0</b></td>
+                                        <td>35.7</td>
+                                        <td><u>43.7</u></td>
+                                        <td><b>56.7</b></td>
+                                        <td>41.3</td>
+                                        <td><b>42.0</b></td>
+                                        <td><b>47.7</b></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="has-text-justified is-size-6">
+                            <b>Performance Comparison with Existing Video-Centric LMMs across Various Long Video Understanding and Reasoning Benchmarks.</b> The best and second-best result among open-source models in each column is marked in <b>bold</b> and <u>underlined</u>, respectively. The numbers with "≈" denote the average video duration of each benchmark. <sup>†</sup> indicates results sourced from official reports. <b>Reasoning Prompt</b> indicates whether a standard reasoning-style prompt (✓) or a direct question-answering prompt (✗) is applied; <b>Tool Calling</b> denotes whether native tool calling is enabled (✓) or disabled (✗) in the prompt.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experiments: Ablation Studies -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Ablation Studies</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <div class="table-container">
+                            <table class="table is-bordered is-striped is-hoverable is-fullwidth is-size-7">
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">Setting</th>
+                                        <th>VideoMME</th>
+                                        <th colspan="3">VideoMMMU</th>
+                                        <th>LVBench</th>
+                                        <th>VideoSIAH-Eval</th>
+                                        <th rowspan="2">Average<br>Score</th>
+                                    </tr>
+                                    <tr>
+                                        <th>w/ subtitle</th>
+                                        <th>adaptation</th>
+                                        <th>comprehension</th>
+                                        <th>perception</th>
+                                        <th>test</th>
+                                        <th>test</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8"><b>Data Recipe</b></td></tr>
+                                    <tr>
+                                        <td class="text-left">SFT w/o self-curated iMCoTT</td>
+                                        <td>8.4</td>
+                                        <td><b>33.6</b></td>
+                                        <td>41.6</td>
+                                        <td>46.0</td>
+                                        <td>15.1</td>
+                                        <td>4.1</td>
+                                        <td>24.8</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>SFT w/ self-curated iMCoTT (LongVT-7B-SFT)</b></td>
+                                        <td><b>64.9</b></td>
+                                        <td>32.3</td>
+                                        <td><b>42.0</b></td>
+                                        <td><b>49.7</b></td>
+                                        <td><b>41.1</b></td>
+                                        <td><b>34.8</b></td>
+                                        <td><b>44.1</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">RL w/o self-curated QAs</td>
+                                        <td>55.1</td>
+                                        <td>30.6</td>
+                                        <td>42.0</td>
+                                        <td>45.6</td>
+                                        <td>38.4</td>
+                                        <td>30.8</td>
+                                        <td>40.4</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>RL w/ self-curated QAs (LongVT-7B-RL)</b></td>
+                                        <td><b>66.1</b></td>
+                                        <td><b>37.7</b></td>
+                                        <td><b>42.3</b></td>
+                                        <td><b>56.3</b></td>
+                                        <td><b>41.4</b></td>
+                                        <td><b>35.9</b></td>
+                                        <td><b>46.6</b></td>
+                                    </tr>
+                                    <tr><td colspan="8"><b>Training Stage</b></td></tr>
+                                    <tr>
+                                        <td class="text-left">SFT only (LongVT-7B-SFT)</td>
+                                        <td>64.9</td>
+                                        <td>32.3</td>
+                                        <td>42.0</td>
+                                        <td>49.7</td>
+                                        <td>41.1</td>
+                                        <td>34.8</td>
+                                        <td>44.1</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">RL only</td>
+                                        <td>52.7</td>
+                                        <td>35.3</td>
+                                        <td>43.0</td>
+                                        <td>55.1</td>
+                                        <td>37.1</td>
+                                        <td>28.2</td>
+                                        <td>41.9</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">SFT+RL (LongVT-7B-RL)</td>
+                                        <td>66.1</td>
+                                        <td><b>37.7</b></td>
+                                        <td>42.3</td>
+                                        <td>56.3</td>
+                                        <td><b>41.4</b></td>
+                                        <td>35.9</td>
+                                        <td>46.6</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>SFT+RL+RFT (LongVT-7B-RFT)</b></td>
+                                        <td><b>67.0</b></td>
+                                        <td>35.7</td>
+                                        <td><b>43.7</b></td>
+                                        <td><b>56.7</b></td>
+                                        <td>41.3</td>
+                                        <td><b>42.0</b></td>
+                                        <td><b>47.7</b></td>
+                                    </tr>
+                                    <tr><td colspan="8"><b>Decoupled Temporal Grounding Reward</b></td></tr>
+                                    <tr>
+                                        <th class="text-left"></th>
+                                        <th rowspan="4"></th>
+                                        <th>IoU@0.3</th>
+                                        <th>IoU@0.5</th>
+                                        <th>IoU@0.7</th>
+                                        <th>mIoU</th>
+                                        <th rowspan="4"></th>
+                                        <th>Score</th>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">RL w/o Decoupled Reward</td>
+                                        <td>31.5</td>
+                                        <td>19.9</td>
+                                        <td>9.1</td>
+                                        <td>21.2</td>
+                                        <td>20.4</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-left">RL w/ Recall Reward</td>
+                                        <td>32.0</td>
+                                        <td>20.4</td>
+                                        <td>9.6</td>
+                                        <td>21.6</td>
+                                        <td>20.9</td>
+                                    </tr>
+                                    <tr class="has-background-light">
+                                        <td class="text-left"><b>RL w/ IoU Reward</b></td>
+                                        <td><b>41.0</b></td>
+                                        <td><b>25.8</b></td>
+                                        <td><b>11.7</b></td>
+                                        <td><b>27.2</b></td>
+                                        <td><b>26.4</b></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="has-text-justified is-size-6">
+                            <b>Ablation Studies.</b> The best result among each comparison group is in <b>bold</b>. We examine <b>Data Recipe</b> where we remove self-curated iMCoTTs during SFT or self-curated QAs during RL to test the dependence on fine-grained supervision; <b>Training Stage</b> where SFT, RL, and RFT are ablated individually and in combination to test their complementary effect; <b>Decoupled Temporal Grounding Reward</b> where Recall-based and IoU-based reward functions are compared, together with a variant without decoupled temporal grounding reward.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experiments: Training Dynamics -->
+    <section class="section hero is-light">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Training Dynamics</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column is-full">
+                        <img src="static/images/ablation.png" alt="Ablations on Reward Design">
+                        <p class="has-text-justified is-size-6">
+                            <b>(a)</b> shows training dynamics under different accuracy and time rewards, and <b>(b)</b> shows the effect of tool-call reward on tool usage.
+                        </p>
+                        <div class="content has-text-justified" style="margin-top: 1.5rem;">
+                            <p>
+                                <b>Recall encourages coverage; IoU demands precision.</b> Using Recall as the reward function during RL presents a drawback: the policy can enlarge the predicted span to envelop the ground-truth interval, which monotonically raises the Recall-based score while ignoring boundary quality. This plateau in the curve of Recall Accuracy Score validates our hypothesized reward hacking. In contrast, IoU explicitly penalizes span inflation via the union term, yielding better-aligned boundaries and more disciplined tool use.
+                            </p>
+                            <p>
+                                <b>Is tool reward really necessary?</b> The Qwen2.5-VL-7B baseline collapses to near-zero tool calls after training in both configurations (w/ and w/o tool reward), indicating that the model does not internalize the tool's function. After performing cold-start SFT to obtain LongVT-7B-SFT, tool-call frequency rises during training under both configurations and accuracy improves in tandem. Hence, the tool reward is not required for basic competence: once SFT grounds the tool's semantics, the model learns when and how to invoke the tool.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="BibTeX">
+        <div class="container is-max-desktop content">
+            <h2 class="title">Citation</h2>
+            <p>If you find this project helpful, please consider citing our paper with:</p>
+            <pre><code>@article{yang2025longvt,
+    title={LongVT: Incentivizing "Thinking with Long Videos" via Native Tool Calling},
+    author={Yang, Zuhao and Wang, Sudong and Zhang, Kaichen and Wu, Keming and Leng, Sicong and Zhang, Yifan and Qin, Chengwei and Lu, Shijian and Li, Xingxuan and Bing, Lidong},
+    journal={arXiv preprint arXiv:2511.16334},
+    year={2025}
+}</code></pre>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <div class="content">
+                        <p>
+                            This page was built using the
+                            <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a>
+                            which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+                            You are free to borrow the of this website, we just ask that you link back to this page in the footer.
+                            <br>
+                            This website is licensed under a
+                            <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
