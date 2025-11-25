@@ -38,7 +38,7 @@
 ## Overview
 
 <div align="center">
-  <img src="assets/teaser.pdf" alt="teaser" width="800"/>
+  <img src="assets/teaser.png" alt="teaser" width="800"/>
 </div>
 
 Large multimodal models (LMMs) have shown great potential for video reasoning with textual Chain-of-Thought.
