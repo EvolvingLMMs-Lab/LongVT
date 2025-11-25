@@ -43,7 +43,7 @@
 
 Large multimodal models (LMMs) have shown great potential for video reasoning with textual Chain-of-Thought.
 However, they remain vulnerable to hallucination, especially when processing long-form videos where evidence is sparse and temporally dispersed.
-Inspired by how humans comprehend long videos\textemdash{}by first skimming globally and then examining relevant clips for details-we introduce **LongVT**, an end-to-end agentic framework that enables ``Thinking with **Long** **V**ideos'' via interleaved Multimodal Chain-of-**T**ool-Thought.
+Inspired by how humans comprehend long videos-by first skimming globally and then examining relevant clips for details-we introduce **LongVT**, an end-to-end agentic framework that enables ``Thinking with **Long** **V**ideos'' via interleaved Multimodal Chain-of-**T**ool-Thought.
 Specifically, we exploit LMMs' inherent temporal grounding ability as a native video cropping tool to zoom in on a specific video clip and resample finer-grained video frames.
 
 This global-to-local reasoning loop continues until answers are grounded in retrieved visual evidence.
