@@ -53,20 +53,31 @@ Please follow the installation instructions in [lmms-engine](https://github.com/
 
 ### 2. RL Training
 
-We provide our source `verl` code, which is a detached fork from the original [verl](https://github.com/volcengine/verl). You can choose to use either our version (included in this repository) or the original verl for RL training.
+We provide our source implementation of `verl`, which is a detached fork from the original [verl](https://github.com/volcengine/verl) repository. You may choose to use either our integrated version or the original `verl` library for RL training. However, for seamless reproduction, we highly recommend using our provided environment.
+
+#### Installation
+
+First, clone the repository and create a dedicated Conda environment:
 
 ```bash
-conda create -n longvideotool python==3.10
-conda activate longvideotool
-https://github.com/EvolvingLMMs-Lab/LongVT.git
+git clone https://github.com/EvolvingLMMs-Lab/LongVT.git
+cd LongVT
+
+conda create -n longvt python=3.10
+conda activate longvt
 ```
 
-Then install RL training pipeline:
+Next, install the RL training pipeline and dependencies:
+
 ```bash
-cd VideoTool
+# Install dependencies
 USE_MEGATRON=0 bash scripts/install_vllm_sglang_mcore.sh
+
+# Install the package in editable mode without extra dependencies
 pip install --no-deps -e .
 ```
+Note: If you encounter any issues during execution, please refer to requirement_reproduce.txt to verify your dependency versions.
+
 
 ### 3. Evaluation
 
