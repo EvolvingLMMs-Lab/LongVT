@@ -144,23 +144,20 @@ bash examples/openmmreasoner/sft_example_launch.sh
 
 ### RL Training
 
-We provide two example scripts for RL training:
+**Training with Ray**
 
-**Option 1: Local training**
-
-```bash
-bash examples/openmmreasoner/gspo_n16.sh
-```
-
-**Option 2: Training with Ray**
-
-To launch training in multi-node environment, you should first setup ray on your head and worker node. Then submit the job as in the bash script.
+To perform training in a multi-node environment, you first need to set up a Ray cluster on your head and worker nodes. While there are various ways to launch Ray, we provide a reference script to help you get started:
 
 ```bash
-bash examples/openmmreasoner/gspo_ray.sh
+bash examples/video_tools/launch.sh
+```
+Once the Ray cluster is active, you can submit the training job using the following script:
+
+```bash
+bash examples/video_tools/longvt_7b_rl_train.sh
 ```
 
-Make sure to update the `DATA_FOLDER` and `PROJECT_FOLDER` paths in the scripts before launching.
+Note: Please remember to update the corresponding variables in the scripts to match your environment before running them.
 
 ### Evaluation
 
@@ -184,7 +181,7 @@ bash examples/openmmreasoner/eval.sh /path/to/checkpoint "gpqa_diamond_thinking,
 
 ### LLM Judge Setup
 
-We use an LLM as judge for both evaluation and RL reward calculation. Our default judge model is `Qwen/Qwen3-235B-A22B-Instruct-2507`.
+We use an LLM as judge for both evaluation and RL reward calculation. Our default judge model is `Qwen/Qwen2.5-72B-Instruct`.
 
 **Steps:**
 1. Set up a server using vLLM or SGLang:
