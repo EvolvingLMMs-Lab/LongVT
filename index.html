@@ -177,7 +177,7 @@
                                     </a>
                                 </span>
                                 <span class="link-block">
-                                    <a href="https://saskatchewan-than-outdoors-profiles.trycloudflare.com/" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                                    <a href="https://huggingface.co/spaces/longvideotool/LongVT-Demo" target="_blank" class="external-link button is-normal is-rounded is-dark">
                                         <span class="icon">
                                             <img src="static/images/gradio.png" alt="Gradio" style="width: 1.2em; height: 1.2em; vertical-align: -0.15em;">
                                         </span>
@@ -247,10 +247,10 @@
         <div class="container is-max-desktop">
             <div class="columns is-centered has-text-centered">
                 <div class="column is-four-fifths">
-                    <h2 class="title is-3 wrap-title with-margin">What Motivates VideoSIAH? Unveiling the Data Contamination in Qwen-VL Series</h2>
+                    <h2 class="title is-3 wrap-title with-margin">Motivation of VideoSIAH</h2>
                     <div class="content has-text-justified">
                         <p>
-                            Long-video reasoning presents a fundamentally different challenge from previous video QA settings: LMMs must locate sparse, fine-grained, and causally decisive moments embedded within hours-long content. However, existing tool-augmented LMMs are mostly trained with coarse-grained and clip-level data. This mismatch leaves modern LMMs lacking the supervision needed to learn how temporal hypotheses are formed, verified, or revised—a critical yet underexplored capability for agentic long-video reasoning.
+                            Long-video reasoning presents a fundamentally different challenge from previous video QA settings: LMMs must locate <em>sparse</em>, <em>fine-grained</em>, and <em>causally decisive</em> moments embedded within hours-long content. However, existing LMMs are mostly trained with <em>coarse-grained</em> and <em>clip-level</em> data. This mismatch leaves modern LMMs lacking the supervision needed to learn how temporal hypotheses are formed, verified, or revised—a critical yet underexplored capability for agentic long-video reasoning.
                         </p>
                         <p>
                             Moreover, most existing video understanding benchmarks only offer <em>multiple-choice QAs</em>, which can be solved without genuine temporal grounding and are vulnerable to <em>dataset leakage</em> or shortcut exploitation. To fill this gap, we introduce <b>VideoSIAH</b>, a large-scale, diverse, and high-quality data suite that serves collectively as a training dataset capturing the reasoning dynamics required for video segment-in-a-haystack QA, and a fine-grained evaluation benchmark, <b>VideoSIAH-Eval</b>, with human-in-the-loop validation for long-video open-ended question-answering.
