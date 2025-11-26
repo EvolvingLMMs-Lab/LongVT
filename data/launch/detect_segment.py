@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Detect Segment Module
+
+This module detects scene boundaries in long videos and segments them into clips.
+
+Usage:
+    python launch/detect_segment.py --input_file /path/to/video_list.txt --output_path results.json
+"""
+
 import argparse
 import collections
 import glob

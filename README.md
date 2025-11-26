@@ -263,16 +263,21 @@ python3 -m sglang.launch_server --model-path Qwen/Qwen2.5-72B-Instruct \
 
 ### Data Pipeline
 
-To follow our data curation pipeline, we provide example scripts in `data/scripts`. The pipeline supports the following operations:
+To follow our data curation pipeline, we provide example scripts in `data/scripts/`. The pipeline consists of the following stages:
 
-#### 1. Scene Detection
+#### 1. Segment Detection
 
-Detect scene boundaries in long videos:
+Detect scene boundaries in long videos and segment them into clips:
 
 ```bash
 cd data
+bash scripts/run_detect_segment.sh
+```
 
-python launch/scene_detect.py \
+Or run directly:
+
+```bash
+python launch/detect_segment.py \
     --input_file /path/to/video_list.txt \
     --output_path detect_results.json \
     --num_parts 10
@@ -280,47 +285,118 @@ python launch/scene_detect.py \
 
 The `video_list.txt` should contain one video path per line.
 
-#### 2. Video Captioning
+#### 2. Clip Captioning
 
-Generate captions for each detected scene using an LLM service:
+Generate captions for each detected clip using a VLM service:
 
 ```bash
 export OPENAI_BASE_URL="http://your-vlm-server:8000/v1"
 export OPENAI_API_KEY="your-api-key"
 
-python launch/caption.py \
+bash scripts/run_clip_caption.sh
+```
+
+Or run directly:
+
+```bash
+python launch/clip_caption.py \
     --input_path detect_results.json \
     --output_path caption_results.json \
     --server openai \
     --fps 4
 ```
 
+#### 3. QA Generation
+
+Generate question-answer pairs from merged video captions:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+
+bash scripts/run_qa_generate.sh \
+    --input-dir /path/to/captions \
+    --output-dir /path/to/qa_output \
+    --model gpt-4o
+```
+
+For parallel processing with sharding:
+
+```bash
+# Run multiple shards in parallel
+bash scripts/run_qa_generate.sh --input-dir ./captions --output-dir ./qa --num-shards 4 --shard-idx 0 &
+bash scripts/run_qa_generate.sh --input-dir ./captions --output-dir ./qa --num-shards 4 --shard-idx 1 &
+bash scripts/run_qa_generate.sh --input-dir ./captions --output-dir ./qa --num-shards 4 --shard-idx 2 &
+bash scripts/run_qa_generate.sh --input-dir ./captions --output-dir ./qa --num-shards 4 --shard-idx 3 &
+```
+
+#### 4. QA Filtering (Text-based)
+
+Filter QA pairs using LLM-based text analysis:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+
+bash scripts/run_qa_filter_text.sh \
+    --input-dir /path/to/qa \
+    --output-dir /path/to/filtered \
+    --summary-file /path/to/video_summaries.json \
+    --model gpt-4o
+```
+
+#### 5. QA Filtering (VLM-based)
+
+Filter QA pairs using Vision-Language Models to verify visual evidence:
+
+```bash
+export VLM_API_BASE="http://your-vlm-server:8000/v1"
+
+bash scripts/run_qa_filter_vl.sh \
+    --input-dir /path/to/qa \
+    --output-dir /path/to/filtered \
+    --quality-threshold 0.85
+```
+
+#### 6. iMCoTT Generation
+
+Generate multi-turn reasoning traces with tool calling:
+
+```bash
+export GOOGLE_API_KEY="your-gemini-api-key"
+# Or use OpenAI-compatible API:
+# export OPENAI_API_KEY="your-api-key"
+# export OPENAI_BASE_URL="http://your-server:8000/v1"
+
+bash scripts/run_imcott_generate.sh \
+    --input-file /path/to/qa.json \
+    --output-dir /path/to/traces \
+    --video-root /path/to/videos
+```
+
+#### Pipeline Overview
+
+The complete data pipeline follows this flow:
+
+```
+Long Videos
+    ↓
+Segment Detection (detect_segment.py)
+    ↓
+Clip Captioning (clip_caption.py)
+    ↓
+QA Generation (qa_generate.py)
+    ↓
+Text-based QA Filtering (qa_filter_text.py)
+    ↓
+VLM-based QA Filtering (qa_filter_vl.py)
+    ↓
+iMCoTT Generation (imcott_generate.py)
+    ↓
+Training Data
+```
+
 ## Evaluation Results
 
-Our **LongVT-7B** model demonstrates strong performance across various long video understanding and reasoning benchmarks. Notably, LongVT-7B-RFT achieves **47.7%** average score with dense frame sampling, and **42.0%** on our proposed VideoSIAH-Eval benchmark (best among all open-source models), demonstrating the effectiveness of our tool-augmented reasoning approach for long video understanding.
-
-| Model | Reasoning<br/>Prompt | Tool<br/>Calling | VideoMME<br/>(≈1018 sec) | VideoMMMU<br/>adapt. | VideoMMMU<br/>comp. | VideoMMMU<br/>perc. | LVBench<br/>(≈4101 sec) | VideoSIAH-Eval<br/>(≈1688 sec) | Average<br/>Score |
-|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Proprietary LMMs** |||||||||
-| GPT-4o | ✗ | ✗ | 77.2† | 66.0† | 62.0† | 55.7† | 30.8† | 17.4 | 51.5 |
-| Gemini 1.5 Pro | ✗ | ✗ | 81.3† | 59.0† | 53.3† | 49.3† | 33.1† | - | 55.2 |
-| **Open-Source LMMs (Sparse Sampling)** |||||||||
-| Qwen2.5-VL-7B | ✗ | ✗ | 62.6 | 37.3 | 28.0 | 36.7 | 30.7 | 28.1 | 37.2 |
-| Video-R1-7B | ✓ | ✗ | 61.0 | 36.3 | 40.7 | 52.3 | 37.2 | 27.9 | 42.6 |
-| VideoRFT-7B | ✓ | ✗ | 60.9 | 36.7 | 42.0 | 53.0 | 34.7 | 26.5 | 42.3 |
-| Video-Thinker-7B | ✓ | ✗ | 61.0 | 34.3 | 44.7 | 53.0 | **52.2** | 10.4 | 42.6 |
-| LongVT-7B-SFT (Ours) | ✓ | ✓ | 12.5 | **37.7** | **46.0** | **58.3** | 36.0 | 26.8 | 36.2 |
-| **LongVT-7B-RL (Ours)** | ✓ | ✓ | **66.1** | 32.7 | 44.7 | 50.0 | 37.8 | **31.0** | **43.7** |
-| **Open-Source LMMs (Dense Sampling)** |||||||||
-| Qwen2.5-VL-7B | ✗ | ✗ | 64.3 | 35.7 | **44.3** | **56.7** | 40.9 | 33.8 | 46.0 |
-| Video-R1-7B | ✓ | ✗ | 60.5 | 37.3 | 38.7 | 46.3 | 40.1 | 33.1 | 42.7 |
-| VideoRFT-7B | ✓ | ✗ | 49.2 | **37.7** | 40.7 | 48.7 | 18.7 | 26.9 | 37.0 |
-| Video-Thinker-7B | ✓ | ✗ | 60.8 | **37.7** | 42.7 | 55.3 | **54.3** | 6.6 | 42.9 |
-| LongVT-7B-SFT (Ours) | ✓ | ✓ | 64.9 | 32.3 | 42.0 | 49.7 | 41.1 | 34.8 | 44.1 |
-| LongVT-7B-RL (Ours) | ✓ | ✓ | 66.1 | **37.7** | 42.3 | 56.3 | 41.4 | 35.9 | 46.6 |
-| **LongVT-7B-RFT (Ours)** | ✓ | ✓ | **67.0** | 35.7 | 43.7 | **56.7** | 41.3 | **42.0** | **47.7** |
-
-**Note:** Bold numbers indicate the best performance among open-source models. † indicates results sourced from official reports. Numbers with "≈" denote the average video duration of each benchmark.
+Please refer to our [paper](https://arxiv.org/abs/2511.16334) for detailed evaluation results and analysis.
 
 ## Citation
 

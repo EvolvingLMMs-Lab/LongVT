@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Clip Caption Module
+
+This module generates captions for video clips using VLM services.
+
+Usage:
+    python launch/clip_caption.py --input_path detect_results.json --output_path captions.json
+"""
+
 import argparse
 import asyncio
 import json
