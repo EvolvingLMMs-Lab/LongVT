@@ -181,31 +181,37 @@ bash examples/openmmreasoner/eval.sh /path/to/checkpoint "gpqa_diamond_thinking,
 
 ### LLM Judge Setup
 
-We use an LLM as judge for both evaluation and RL reward calculation. Our default judge model is `Qwen/Qwen2.5-72B-Instruct`.
+We use an LLM-based judge both for evaluation and for computing RL rewards.  
+By default, we use `Qwen/Qwen2.5-72B-Instruct` as the judge model.
 
 **Steps:**
-1. Set up a server using vLLM or SGLang:
+1. Start a judge server with vLLM or SGLang
+
+```bash
+# Example with vLLM
+vllm serve Qwen/Qwen2.5-72B-Instruct \
+    --port 1234 \
+    --gpu-memory-utilization 0.8 \
+    --max-model-len 131072 \
+    --tensor-parallel-size 8 \
+    --served-model-name "judge" \
+    --trust-remote-code
+```
 
 ```bash
 # Example with SGLang
-python3 -m sglang.launch_server --model-path Qwen/Qwen3-235B-A22B-Instruct-2507 \
-     --tp-size 8 \
-     --dp-size 1 \
-     --served-model-name judge \
-     --port 8000 \
-     --host 0.0.0.0 --mem-fraction-static 0.75
+python3 -m sglang.launch_server --model-path Qwen/Qwen2.5-72B-Instruct \
+    --tp-size 8 \
+    --dp-size 1 \
+    --served-model-name judge \
+    --port 1234 \
+    --host 0.0.0.0 \
+    --mem-fraction-static 0.75
 ```
 
-2. Update the judge service address in your scripts:
-   - For RL training: Update `OPENAI_BASE_URL` in `gspo_n16.sh` or `gspo_ray.sh`
-   - For evaluation: Update `OPENAI_BASE_URL` in `eval.sh`
+2. Configure the judge endpoint in your scripts:
+   Set the judge service base URL in longvt_7b_rl_train.sh via the LLM_AS_A_JUDGE_BASE environment variable.
 
-```bash
-export OPENAI_API_KEY="EMPTY"
-export OPENAI_BASE_URL="http://your-judge-server-address:8000/v1"
-export OPENAI_MODEL_NAME="judge"
-export USE_LLM_JUDGE="True"
-```
 
 ### Data Processing Pipeline
 
