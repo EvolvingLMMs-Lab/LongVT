@@ -18,6 +18,8 @@ dependencies = [
     "torch",
     "torchvision",
     "tqdm",
+    "requests",
+    "opencv-python",
 ]
 
 [project.optional-dependencies]

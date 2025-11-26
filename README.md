@@ -122,7 +122,9 @@ uv pip install -e ".[dev]"
 - `decord`: Video frame extraction
 - `scenedetect`: Scene boundary detection
 - `qwen-vl-utils`: Qwen VL utilities for video processing
-- `openai`: OpenAI-compatible API client for LLM services
+- `openai`: OpenAI-compatible API client for LLM/VLM services
+- `opencv-python`: Video processing and frame extraction for iMCoTT generation
+- `requests`: HTTP client for VLM API interactions
 
 We recommend using a separate environment if you encounter conflicts with other packages.
 
