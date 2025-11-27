@@ -14,7 +14,7 @@
 [![Data](https://img.shields.io/badge/Data-0040A1?style=for-the-badge&logo=huggingface&logoColor=ffffff)](https://huggingface.co/datasets/longvideotool/LongVT-Parquet)
 [![Models](https://img.shields.io/badge/Models-5EDDD2?style=for-the-badge&logo=huggingface&logoColor=ffffff)](https://huggingface.co/collections/lmms-lab/longvt)
 [![Demo](https://img.shields.io/badge/Demo-FF6F00?style=for-the-badge&logo=gradio&logoColor=ffffff)](https://huggingface.co/spaces/longvideotool/LongVT-Demo)
-[![Blog](https://img.shields.io/badge/Blog-lmms_lab?style=for-the-badge)](https://www.lmms-lab.com/posts/longvt/)
+[![Blog](https://img.shields.io/badge/Blog-lmms_lab?style=for-the-badge&logo=blogger&logoColor=white)](https://www.lmms-lab.com/posts/longvt/)
 
 [![Daily Paper](https://img.shields.io/badge/🚀_Daily_Paper-FF9D00?style=for-the-badge)](https://huggingface.co/papers/2511.20785)
 </div>
