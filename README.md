@@ -8,7 +8,7 @@
 
 <div align="center">
 
-[![Paper](https://img.shields.io/badge/Paper-000000?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2511.16334)
+[![Paper](https://img.shields.io/badge/Paper-000000?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2511.20785)
 [![Website](https://img.shields.io/badge/Website-000000?style=for-the-badge&logo=google-chrome&logoColor=white)](https://evolvinglmms-lab.github.io/LongVT/)
 [![Code](https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/EvolvingLMMs-Lab/LongVT)
 [![Data](https://img.shields.io/badge/Data-0040A1?style=for-the-badge&logo=huggingface&logoColor=ffffff)](https://huggingface.co/datasets/longvideotool/LongVT-Parquet)
@@ -407,8 +407,8 @@ If you find this project helpful, please consider citing our paper with:
 ```bibtex
 @article{yang2025longvt,
     title={LongVT: Incentivizing "Thinking with Long Videos" via Native Tool Calling},
-    author={Yang, Zuhao and Wang, Sudong and Zhang, Kaichen and Wu, Keming and Leng, Sicong and Zhang, Yifan and Qin, Chengwei and Lu, Shijian and Li, Xingxuan and Bing, Lidong},
-    journal={arXiv preprint arXiv:2511.16334},
+    author={Yang, Zuhao and Wang, Sudong and Zhang, Kaichen and Wu, Keming and Leng, Sicong and Zhang, Yifan and Li, Bo and Qin, Chengwei and Lu, Shijian and Li, Xingxuan and Bing, Lidong},
+    journal={arXiv preprint arXiv:2511.20785},
     year={2025}
 }
 ```
