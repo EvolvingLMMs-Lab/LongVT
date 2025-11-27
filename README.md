@@ -1,8 +1,8 @@
 
 # LongVT: Incentivizing "Thinking with Long Videos" via Native Tool Calling
-<div align="center">
-  <img src="assets/cover.png" alt="OpenMMReasoner Cover" width="800"/>
-</div>
+<!-- <div align="center">
+  <img src="assets/cover.png" alt="LongVT Cover" width="800"/>
+</div> -->
 
 <br>
 
