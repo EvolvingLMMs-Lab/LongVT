@@ -149,7 +149,7 @@ The dataset includes:
 - **RL Data**: ~1.6K samples for agentic reinforcement learning  
 - **RFT Data**: ~15K samples for agentic reinforcement fine-tuning
 
-**Source Videos:** We are currently working on uploading the source video files to Hugging Face. Due to the large file sizes, this process may take some time. Please stay tuned for updates on our [Hugging Face collection](https://huggingface.co/collections/lmms-lab/longvt).
+**Source Videos:** The source video and image files are available on [Hugging Face](https://huggingface.co/datasets/longvideotool/LongVT-Source). Please refer to the dataset page for download instructions.
 
 ### SFT Training
 
