@@ -409,7 +409,7 @@ If you find this project helpful, please consider citing our paper with:
 ```bibtex
 @article{yang2025longvt,
     title={LongVT: Incentivizing "Thinking with Long Videos" via Native Tool Calling},
-    author={Yang, Zuhao and Wang, Sudong and Zhang, Kaichen and Wu, Keming and Leng, Sicong and Zhang, Yifan and Li, Bo and Qin, Chengwei and Lu, Shijian and Li, Xingxuan and Bing, Lidong},
+    author={Yang, Zuhao and Wang, Sudong and Zhang, Kaichen and Wu, Keming and Leng, Sicong and Zhang, Yifan and Qin, Chengwei and Lu, Shijian and Li, Xingxuan and Bing, Lidong},
     journal={arXiv preprint arXiv:2511.20785},
     year={2025}
 }
