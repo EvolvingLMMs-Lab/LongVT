@@ -20,9 +20,9 @@
 </div>
 
 ## 🎉 News
-- **[2025-11]**: We have created a fun cartoon ([Conan_EN](https://drive.google.com/file/d/1sk9YfmtcQq0nLlI5K_G3BOziRSEjMMT0/view?usp=sharing) | [Conan_CN](https://drive.google.com/file/d/14MJEN_FBRJNJ9IYWK-fs4IbZZSgvKGAw/view?usp=sharing)) to explain LongVT. Enjoy :) Credit to the amazing [NotebookLM](https://notebooklm.google.com/) and [Gemini-3](https://blog.google/products/gemini/gemini-3/#learn-anything).
-- **[2025-11]**: Join our WeChat group by scanning this [QR code](assets/qr_code.jpg).
-- **[2025-11]**: We release all of our codes, data, and model checkpoints! Check out the [LongVT collection on Hugging Face](https://huggingface.co/collections/lmms-lab/longvt).
+- **[2025-12-02]**: We have created fun cartoons ([Conan_EN](https://drive.google.com/file/d/1sk9YfmtcQq0nLlI5K_G3BOziRSEjMMT0/view?usp=sharing) | [Conan_CN](https://drive.google.com/file/d/14MJEN_FBRJNJ9IYWK-fs4IbZZSgvKGAw/view?usp=sharing)) to explain LongVT. Enjoy :) Credit to the amazing [NotebookLM](https://notebooklm.google.com/) and [Gemini-3](https://blog.google/products/gemini/gemini-3/#learn-anything).
+- **[2025-12-02]**: Join our WeChat group by scanning this [QR code](assets/qr_code.jpg).
+- **[2025-11-28]**: We release all of our codes, data, and model checkpoints! Check out the [LongVT collection on Hugging Face](https://huggingface.co/collections/lmms-lab/longvt).
 
 ## Table of Contents
 
