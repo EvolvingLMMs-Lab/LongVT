@@ -42,7 +42,7 @@
   - [Evaluation](#evaluation)
   - [LLM Judge Setup](#llm-judge-setup)
   - [Data Pipeline](#data-pipeline)
-- [Evaluation Results](#evaluation-results)
+- [Single Sample Inference](#single-sample-inference)
 - [Citation](#citation)
 - [Acknowledgements](#acknowledgements)
 - [Star History](#-star-history)
@@ -399,9 +399,40 @@ iMCoTT Generation (imcott_generate.py)
 Training / Evaluation Data
 ```
 
-## Evaluation Results
+## Single Sample Inference
 
-Please refer to our [paper](https://arxiv.org/abs/2511.20785) for detailed evaluation results and analysis.
+For quick testing or demo purposes, we provide a standalone script for single sample inference:
+
+```bash
+# Start vLLM server and run inference
+bash examples/eval/run_single_inference.sh \
+    longvideotool/LongVT-7B-RFT \
+    /path/to/video.mp4 \
+    "What is happening in the video?"
+```
+
+Or run the Python script directly (requires a running vLLM server):
+
+```bash
+# First, start vLLM server with tool calling support
+vllm serve longvideotool/LongVT-7B-RFT \
+    --chat-template examples/eval/tool_call_qwen2_5_vl.jinja \
+    --tool-call-parser hermes \
+    --enable-auto-tool-choice \
+    --trust-remote-code \
+    --port 8000
+
+# Then run inference
+python examples/eval/single_inference.py \
+    --video_path /path/to/video.mp4 \
+    --question "What is happening in the video?"
+```
+
+**Key Parameters:**
+- `--fps`: Video sampling FPS (default: 1)
+- `--max_frames`: Maximum frames to encode (default: 512)
+- `--max_pixels`: Max pixels per frame (default: 50176 = 224×224)
+- `--no_tool`: Disable tool calling (for reasoning-only mode)
 
 ## Citation
 
