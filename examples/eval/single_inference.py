@@ -216,7 +216,7 @@ def run_inference(
         print(f"[INFO] Encoded {len(video_contents)} frames")
 
     user_content = video_contents + [
-        {"type": "text", "text": f"{question} {TOOL_PROMPT}" if enable_tool else question}
+        {"type": "text", "text": f"{question} {TOOL_PROMPT} The Video path for this video is: {video_path}" if enable_tool else question}
     ]
     
     # Build messages: add system prompt for non-tool mode
