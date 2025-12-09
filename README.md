@@ -508,6 +508,9 @@ We gratefully acknowledge the following open-source projects that made this work
 
 We thank the developers and contributors of these projects for their excellent work and for making their code publicly available.
 
+At the moment, the `verl_0.6`-based training pipeline is still **unstable** and may exhibit inconsistencies or failures in certain configurations.  
+We therefore **strongly encourage** the community to help improve and stabilize the `verl_0.6` integration by reporting issues, submitting pull requests, and contributing fixes or enhancements.
+
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=EvolvingLMMs-Lab/LongVT&type=Date)](https://github.com/EvolvingLMMs-Lab/LongVT&Date)
