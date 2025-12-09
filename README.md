@@ -22,7 +22,7 @@
 - **[2025-12-07]**: We won the 🏆 **Top \#2 Daily Paper** (on Dec 02, 2025) and **Top \#3 Weekly Paper** (by Dec 07, 2025) on Hugging Face. Check out the [LongVT Paper Page](https://huggingface.co/papers/2511.20785)!
 - **[2025-12-02]**: We created fun cartoons ([Conan_EN](https://drive.google.com/file/d/1sk9YfmtcQq0nLlI5K_G3BOziRSEjMMT0/view?usp=sharing) | [Conan_CN](https://drive.google.com/file/d/14MJEN_FBRJNJ9IYWK-fs4IbZZSgvKGAw/view?usp=sharing)) to explain LongVT. Enjoy :) Credit to the amazing [NotebookLM](https://notebooklm.google.com/) and [Gemini-3](https://blog.google/products/gemini/gemini-3/#learn-anything).
 - **[2025-12-02]**: Join our WeChat group by scanning this [QR code](assets/qr_code.jpg).
-- **[2025-11-28]**: We released all of our codes, data, and model checkpoints. Check out the [LongVT Collection Pape](https://huggingface.co/collections/lmms-lab/longvt).
+- **[2025-11-28]**: We released all of our codes, data, and model checkpoints. Check out the [LongVT Collection Page](https://huggingface.co/collections/lmms-lab/longvt).
 
 ## Table of Contents
 
