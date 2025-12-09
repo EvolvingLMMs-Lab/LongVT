@@ -180,20 +180,31 @@ bash examples/sft/run_longvt_7b_sft.sh
 
 ### RL Training
 
-**Training with Ray**
+We support both **multi-node (Ray-based)** and **single-node** training workflows:
 
-To perform training in a multi-node environment, you first need to set up a Ray cluster on your head and worker nodes. While there are various ways to launch Ray, we provide a reference script to help you get started:
+- **Multi-node training (Ray cluster)**  
+  To perform training in a multi-node environment, you first need to set up a Ray cluster on your head and worker nodes. While there are various ways to launch Ray, we provide a reference script to help you get started:
 
-```bash
-bash examples/video_tools/launch.sh
-```
-Once the Ray cluster is active, you can submit the training job using the following script:
+  ```bash
+  bash examples/video_tools/launch.sh
+  ```
 
-```bash
-bash examples/video_tools/longvt_7b_rl_train.sh
-```
+  Once the Ray cluster is active, you can submit the training job using the following script:
 
-Note: Please remember to update the corresponding variables in the scripts to match your environment before running them.
+  ```bash
+  bash examples/video_tools/longvt_7b_rl_train.sh
+  ```
+
+- **Single-node training (no Ray cluster)**  
+  If you only use a single node, you do **not** need to start a Ray cluster. Simply:
+  1. Edit `examples/video_tools/longvt_7b_rl_train.sh` and set `nnodes=1` (and other resource-related variables as needed).
+  2. Run:
+
+     ```bash
+     bash examples/video_tools/longvt_7b_rl_train.sh
+     ```
+
+In both cases, please remember to update the corresponding variables in the scripts (e.g., paths, resource configs) to match your environment before running them.
 
 ### RFT Training
 
