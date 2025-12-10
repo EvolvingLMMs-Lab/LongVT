@@ -1,4 +1,4 @@
-dataset_path: kcz358/longvt_benchmark
+dataset_path: longvideotool/VideoSIAH-Eval
 dataset_kwargs:
   token: True
   cache_dir: longvt_benchmark
