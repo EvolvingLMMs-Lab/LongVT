@@ -49,5 +49,6 @@ accelerate launch --num_processes=8 --main_process_port 12345 -m lmms_eval \
     --tasks $TASK_NAME \
     --batch_size 1 \
     --output_path ./eval_logs \
-    --log_samples
+    --log_samples \
+    --include_path ./lmms_eval_tasks
 
