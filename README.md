@@ -246,8 +246,7 @@ bash examples/eval/run_eval.sh /path/to/checkpoint longvt False 512
 
 ### LLM Judge Setup
 
-We use an LLM-based judge both for evaluation and for computing RL rewards.  
-By default, we use `Qwen/Qwen2.5-72B-Instruct` as the judge model.
+We adopt LLM-as-a-Judge for both RL reward computation and evaluation. **Note:** `--max-model-len` in the example below is *for training (RL reward) only*; for evaluation, please follow `examples/eval/run_eval.sh` and omit this argument. By default, we use `Qwen/Qwen2.5-72B-Instruct` as the judge model.
 
 **Steps:**
 1. Start a judge server with vLLM or SGLang
