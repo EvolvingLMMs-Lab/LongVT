@@ -486,7 +486,7 @@ python examples/eval/single_inference.py \
 
 ## Citation
 
-If you find this project helpful, please consider citing our paper with:
+If you find this project helpful, please consider giving us a star and citing our paper with:
 
 ```bibtex
 @article{yang2025longvt,
