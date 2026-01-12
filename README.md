@@ -479,7 +479,7 @@ python examples/eval/single_inference.py \
 
 **Python Script Parameters:**
 - `--fps`: Video sampling FPS (default: 1)
-- `--max_frames`: Maximum frames to encode (default: 512)
+- `--max_frames`: Maximum frames to encode (default: 768 for SFT/RL; 512 for RFT)
 - `--max_pixels`: Max pixels per frame (default: 50176 = 224×224)
 - `--no_tool`: Disable tool calling (for reasoning-only mode)
 - `--api_base`: vLLM server URL (default: http://localhost:8000/v1)
