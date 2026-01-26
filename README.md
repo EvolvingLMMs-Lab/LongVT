@@ -19,7 +19,7 @@
 </div>
 
 ## 🎉 News
-- **[2025-01-25]**: We are invited to AAAI Talk! Check out the [slides](https://docs.google.com/presentation/d/1Xm0tH28hdZKBLB7d5LCNrFJNJQtd6kasKPov15FH4FE/edit?usp=sharing).
+- **[2026-01-25]**: We are invited to AAAI Talk! Check out the [slides](https://docs.google.com/presentation/d/1Xm0tH28hdZKBLB7d5LCNrFJNJQtd6kasKPov15FH4FE/edit?usp=sharing).
 - **[2025-12-10]**: We are invited to BAAI Talk! Check out the [slides and recording](https://event.baai.ac.cn/activities/983).
 - **[2025-12-07]**: We won the 🏆 **[AI Paper of the Day](https://huggingface.co/collections/vladbogo/ai-paper-of-the-day)** (on Dec 02, 2025), **Top \#3 Weekly Paper** (by Dec 07, 2025), and **Top \#5 Monthly Paper** (in December, 2025) on Hugging Face! Check out the [LongVT Paper Page](https://huggingface.co/papers/2511.20785).
 - **[2025-12-02]**: We created fun cartoons ([Conan_EN](https://drive.google.com/file/d/1sk9YfmtcQq0nLlI5K_G3BOziRSEjMMT0/view?usp=sharing) | [Conan_CN](https://drive.google.com/file/d/14MJEN_FBRJNJ9IYWK-fs4IbZZSgvKGAw/view?usp=sharing)) to explain LongVT. Enjoy :) Credit to the amazing [NotebookLM](https://notebooklm.google.com/) and [Gemini-3](https://blog.google/products/gemini/gemini-3/#learn-anything).
