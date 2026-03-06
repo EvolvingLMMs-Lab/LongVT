@@ -20,7 +20,7 @@
 - **[2026-01-25]**: We are invited to **AAAI Talk**! Check out the [slides](https://docs.google.com/presentation/d/1Xm0tH28hdZKBLB7d5LCNrFJNJQtd6kasKPov15FH4FE/edit?usp=sharing).
 - **[2025-12-10]**: We are invited to **BAAI Talk**! Check out the [slides and recording](https://event.baai.ac.cn/activities/983).
 - **[2025-12-07]**: We won the 🏆 **[AI Paper of the Day](https://huggingface.co/collections/vladbogo/ai-paper-of-the-day)** (on Dec 02, 2025), **Top \#3 Weekly Paper** (by Dec 07, 2025), and **Top \#5 Monthly Paper** (in December, 2025) on Hugging Face! Check out the [LongVT Paper Page](https://huggingface.co/papers/2511.20785).
-- **[2025-11-28]**: We released all of our codes, data, and model checkpoints! Check out the [LongVT Collection Page](https://huggingface.co/collections/lmms-lab/longvt). Feel free to join our WeChat group by scanning this [QR code](assets/qr_code.jpg) for questions, collaborations, or just to chat!
+- **[2025-11-28]**: We released all of our codes, data, and model checkpoints! Check out the [LongVT Collection Page](https://huggingface.co/collections/lmms-lab/longvt).
 
 ## Table of Contents
 
