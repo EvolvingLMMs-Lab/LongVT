@@ -41,6 +41,7 @@
   - [LLM Judge Setup](#llm-judge-setup)
   - [Data Pipeline](#data-pipeline)
 - [Single Sample Inference](#single-sample-inference)
+- [FAQ](#faq)
 - [Citation](#citation)
 - [Acknowledgements](#acknowledgements)
 - [Star History](#-star-history)
@@ -482,6 +483,88 @@ python examples/eval/single_inference.py \
 - `--max_pixels`: Max pixels per frame (default: 50176 = 224×224)
 - `--no_tool`: Disable tool calling (for reasoning-only mode)
 - `--api_base`: vLLM server URL (default: http://localhost:8000/v1)
+
+## FAQ
+
+Common questions and troubleshooting tips collected from community feedback. See linked issues for full discussion.
+
+<details>
+<summary><b>Q1: Are tool calls actually executed during RL training, or are they simulated?</b></summary>
+
+**Yes, every tool call is actually executed.** During RL training, each rollout goes through a real MCP server: when the model generates a `crop_video` call, the MCP server processes the video and returns actual resampled frames as base64-encoded images, which are decoded and fed back into the model's visual input for the next reasoning step. There is no simulation or mocked tool response.
+
+The core rollout loop follows a state machine: `PENDING → RUNNING → TOOL_CALLING → RUNNING → … → COMPLETED`. See [`sglang_rollout.py`](https://github.com/EvolvingLMMs-Lab/LongVT/blob/main/verl/workers/rollout/sglang_rollout/sglang_rollout.py) for the implementation.
+
+*Reference: [#16](https://github.com/EvolvingLMMs-Lab/LongVT/issues/16)*
+</details>
+
+<details>
+<summary><b>Q2: I'm getting very low accuracy or near-zero tool calls during evaluation. What should I check?</b></summary>
+
+This is almost always a configuration issue. Check the following in order:
+
+1. **Task name**: Use `videomme_w_subtitle_reward_tool` (with subtitles), not `videomme_reward_tool`. The paper results use the subtitle version.
+
+2. **`IS_QWEN3_VL` flag**: Must be `False` for the released LongVT checkpoints (which are fine-tuned from Qwen2.5-VL). Setting it to `True` changes message formatting and can prevent tool calls from triggering.
+
+3. **LLM Judge setup**: For open-ended tasks and MCQ fallback scoring, the judge must be active:
+   ```bash
+   export USE_LLM_JUDGE=True        # case-sensitive
+   export OPENAI_BASE_URL="http://your-judge-server:port/v1"
+   export OPENAI_MODEL_NAME="judge"
+   export OPENAI_API_KEY="EMPTY"
+   # Verify: curl $OPENAI_BASE_URL/models
+   ```
+   If the judge server is unreachable, scores silently default to 0 for all non-exact-match answers.
+
+4. **vLLM version**: Use vLLM `0.12.0` with the provided chat template (`--chat-template ./examples/eval/tool_call_qwen2_5_vl.jinja`). Different versions may have incompatible `hermes_tool_parser` implementations.
+
+5. **Sample size**: Tool calls are primarily triggered on long videos. Using `--limit 100` may sample mostly short videos where tool calling is unnecessary.
+
+*Reference: [#15](https://github.com/EvolvingLMMs-Lab/LongVT/issues/15), [#10](https://github.com/EvolvingLMMs-Lab/LongVT/issues/10), [#11](https://github.com/EvolvingLMMs-Lab/LongVT/issues/11)*
+</details>
+
+<details>
+<summary><b>Q3: Does <code>crop_video</code> use absolute timestamps (seconds) or frame indices?</b></summary>
+
+**Absolute timestamps in seconds.** The `start_time` and `end_time` arguments to `crop_video` represent time in seconds from the start of the video. The MCP server then resamples frames within that time window. If you observe cases where frame indices happen to align with the answer, it is coincidental.
+
+*Reference: [#12](https://github.com/EvolvingLMMs-Lab/LongVT/issues/12)*
+</details>
+
+<details>
+<summary><b>Q4: The 72B judge server fails with OOM or <code>max_model_len</code> errors.</b></summary>
+
+The default `max_model_len` for `Qwen2.5-72B-Instruct` is 131072 tokens, which requires significant GPU memory. Solutions:
+
+- **Reduce `max_model_len`**: For judge-only use (short inputs), `--max-model-len 8192` is sufficient and dramatically reduces memory.
+- **Increase `tensor-parallel-size`**: Distribute across more GPUs (e.g., `--tensor-parallel-size 8`).
+- **Use a smaller judge**: `Qwen2.5-72B-Instruct` is recommended for training; for MCQ evaluation where the judge only matches natural language to option text, smaller models may suffice.
+
+Note: `--max-model-len` in the README's judge example is for RL training reward computation. For evaluation, follow `examples/eval/run_eval.sh` which uses different settings.
+
+*Reference: [#9](https://github.com/EvolvingLMMs-Lab/LongVT/issues/9)*
+</details>
+
+<details>
+<summary><b>Q5: How do I reproduce the exact numbers reported in the paper?</b></summary>
+
+Our reported results use the following setup:
+
+| Parameter | Value |
+|-----------|-------|
+| Task (VideoMME) | `videomme_w_subtitle_reward_tool` |
+| Max frames | 768 |
+| Hardware | 1 node × 8 A800-SXM4-80GB |
+| Parallelism | `num_processes=8` |
+| Judge model | `Qwen/Qwen3-235B-A22B` (or `Qwen/Qwen2.5-72B-Instruct`) |
+| vLLM | 0.12.0 |
+| `IS_QWEN3_VL` | `False` |
+
+Results can be sensitive to environment and judge model quality. If scores are significantly lower than reported, inspect the inference JSONL outputs for silent failures such as HTTP 500 errors, excessive unreasonable crops, or format parsing errors.
+
+*Reference: [#11](https://github.com/EvolvingLMMs-Lab/LongVT/issues/11)*
+</details>
 
 ## Citation
 
