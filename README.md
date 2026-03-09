@@ -38,7 +38,7 @@
   - [Evaluation](#evaluation)
   - [LLM Judge Setup](#llm-judge-setup)
   - [Data Pipeline](#data-pipeline)
-- [Single Sample Inference](#single-sample-inference)
+  - [Single Sample Inference](#single-sample-inference)
 - [FAQ](#faq)
 - [Citation](#citation)
 - [Acknowledgements](#acknowledgements)
@@ -53,7 +53,7 @@
 Large multimodal models (LMMs) have shown great potential for video reasoning with textual Chain-of-Thought. However, they remain vulnerable to hallucinations, especially when processing long-form videos where evidence is sparse and temporally dispersed.
 
 Inspired by how humans comprehend long videos—by first skimming globally and then examining relevant clips for details—we introduce **LongVT**, an end-to-end agentic framework that enables "Thinking with **Long V**ideos" via interleaved Multimodal Chain-of-**T**ool-Thought.
-Specifically, we exploit LMMs' inherent temporal grounding ability as a native video cropping tool to zoom in on a specific video clip and resample finer-grained video frames. This global-to-local reasoning loop continues until answers are grounded in retrieved visual evidence. Given the scarcity of fine-grained question-answering (QA) data for the long video reasoning task, we curate and will release a data suite named **VideoSIAH** to facilitate both training and evaluation. Specifically, our training dataset consists of 247.9K samples for tool-integrated cold-start supervised fine-tuning, 1.6K samples for agentic reinforcement learning, and 15.4K samples for agentic reinforcement fine-tuning, respectively. Our evaluation benchmark consists of 652 QA pairs that are carefully curated through a semi-automatic data pipeline with human-in-the-loop validation. With a meticulously designed three-stage training strategy and extensive empirical validation, LongVT consistently outperforms existing strong baselines across four challenging long-video understanding and reasoning benchmarks.
+Specifically, we exploit LMMs' inherent temporal grounding ability as a native video cropping tool to zoom in on a specific video clip and resample finer-grained video frames. This global-to-local reasoning loop continues until answers are grounded in retrieved visual evidence. Given the scarcity of fine-grained question-answering (QA) data for the long video reasoning task, we curate and release a data suite named **VideoSIAH** to facilitate both training and evaluation. Specifically, our training dataset consists of 247.9K samples for tool-integrated cold-start supervised fine-tuning, 1.6K samples for agentic reinforcement learning, and 15.4K samples for agentic reinforcement fine-tuning, respectively. Our evaluation benchmark consists of 652 QA pairs that are carefully curated through a semi-automatic data pipeline with human-in-the-loop validation. With a meticulously designed three-stage training strategy and extensive empirical validation, LongVT consistently outperforms existing strong baselines across four challenging long-video understanding and reasoning benchmarks.
 
 
 ## Installation
@@ -426,7 +426,7 @@ iMCoTT Generation (imcott_generate.py)
 Training / Evaluation Data
 ```
 
-## Single Sample Inference
+### Single Sample Inference
 
 For quick testing or demo purposes, we provide a standalone script for single sample inference:
 
