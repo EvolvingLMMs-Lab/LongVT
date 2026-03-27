@@ -14,7 +14,7 @@
 </div>
 
 ## 🎉 News
-- **[2026-03-09]**: **Data Update**: Fixed SFT parquet schema issue ([#14](https://github.com/EvolvingLMMs-Lab/LongVT/issues/14)) and released cleaned [VideoSIAH-Eval](https://huggingface.co/datasets/longvideotool/VideoSIAH-Eval) (652 unique QA pairs, removing duplicates from the initial 1,280-entry release; since each duplicate was an exact copy, all reported metrics remain unchanged).
+- **[2026-03-09]**: We fixed SFT parquet schema issue ([#14](https://github.com/EvolvingLMMs-Lab/LongVT/issues/14)) and released deduplicated [VideoSIAH-Eval](https://huggingface.co/datasets/longvideotool/VideoSIAH-Eval).
 - **[2026-02-21]**: LongVT was accepted by 🔥 **CVPR 2026**!
 - **[2026-01-25]**: We are invited to **AAAI Talk**! Check out the [slides](https://docs.google.com/presentation/d/1Xm0tH28hdZKBLB7d5LCNrFJNJQtd6kasKPov15FH4FE/edit?usp=sharing).
 - **[2025-12-10]**: We are invited to **BAAI Talk**! Check out the [slides and recording](https://event.baai.ac.cn/activities/983).
