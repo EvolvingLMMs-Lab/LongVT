@@ -523,6 +523,22 @@ This is almost always a configuration issue. Check the following in order:
 </details>
 
 <details>
+<summary><b>Q2.5: Evaluation with tool-calling tasks gives lower accuracy than expected.</b></summary>
+
+Tool-calling evaluation requires `max_new_tokens: 49152` because multi-turn responses (think → tool_call → tool_response with frames → think again → answer) routinely exceed the default 4,096 tokens. If `max_new_tokens` is too low, responses get truncated before the `<answer>` tag, resulting in `acc_score = 0` for those samples.
+
+Verify that the task YAML you are using includes:
+```yaml
+generation_kwargs:
+  max_new_tokens: 49152
+```
+
+All `*_tool.yaml` task configs in this repo now include this override. If you are using an older version, please pull the latest changes.
+
+*Reference: [#19](https://github.com/EvolvingLMMs-Lab/LongVT/issues/19)*
+</details>
+
+<details>
 <summary><b>Q3: Does <code>crop_video</code> use absolute timestamps (seconds) or frame indices?</b></summary>
 
 **Absolute timestamps in seconds.** The `start_time` and `end_time` arguments to `crop_video` represent time in seconds from the start of the video. The MCP server then resamples frames within that time window. If you observe cases where frame indices happen to align with the answer, it is coincidental.

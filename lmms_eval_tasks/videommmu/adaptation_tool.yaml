@@ -3,4 +3,5 @@ task: "video_mmmu_adaptation_reasoning_tool"
 doc_to_text: !function utils.videommmu_doc_to_text_adaptation
 doc_to_messages: !function utils.videommmu_tool_doc_to_messages_adaptation
 include: _default_template_yaml
-process_results: !function utils.videommmu_process_results_adaptation
+process_results: !function utils.videommmu_process_results_adaptationgeneration_kwargs:
+  max_new_tokens: 49152
