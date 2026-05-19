@@ -14,6 +14,7 @@
 </div>
 
 ## 🎉 News
+- **[2026-05-20]**: We released [**ParaVT**](https://github.com/EvolvingLMMs-Lab/ParaVT), our follow-up work that extends LongVT from sequential to parallel video tool calling, post-trained with **PARA-GRPO** to tame the *Tool Prior Paradox* (Format Fragility + Tool Necessity Gap) of native-RL agentic video reasoning.
 - **[2026-03-09]**: We fixed SFT parquet schema issue ([#14](https://github.com/EvolvingLMMs-Lab/LongVT/issues/14)) and released deduplicated [VideoSIAH-Eval](https://huggingface.co/datasets/longvideotool/VideoSIAH-Eval).
 - **[2026-02-21]**: LongVT was accepted by 🔥 **CVPR 2026**!
 - **[2026-01-25]**: We are invited to **AAAI Talk**! Check out the [slides](https://docs.google.com/presentation/d/1Xm0tH28hdZKBLB7d5LCNrFJNJQtd6kasKPov15FH4FE/edit?usp=sharing).
@@ -492,6 +493,16 @@ Common questions and troubleshooting tips collected from community feedback. See
 **Yes, every tool call is actually executed.** During RL training, each rollout goes through a real MCP server: when the model generates a `crop_video` call, the MCP server processes the video and returns actual resampled frames as base64-encoded images, which are decoded and fed back into the model's visual input for the next reasoning step. There is no simulation or mocked tool response.
 
 The core rollout loop follows a state machine: `PENDING → RUNNING → TOOL_CALLING → RUNNING → … → COMPLETED`. See [`sglang_rollout.py`](https://github.com/EvolvingLMMs-Lab/LongVT/blob/main/verl/workers/rollout/sglang_rollout/sglang_rollout.py) for the implementation.
+
+*Reference: [#16](https://github.com/EvolvingLMMs-Lab/LongVT/issues/16)*
+</details>
+
+<details>
+<summary><b>Q1.5: Is the tool-call format reliable on small (7–8B) models? Won't JSON or other structured outputs hallucinate?</b></summary>
+
+A reasonable concern. LongVT does *not* use JSON — it uses an XML-style schema with hand-anchored tags (`<tool_call>...</tool_call>`, `<tool_response>...</tool_response>`, `<answer>...</answer>`), which gives the format parser a smaller, prior-aligned target than free-form JSON. With our cold-start SFT plus verifiable-reward RL, 8B-scale models reach near-perfect format compliance for **sequential, single-tool-call-per-turn** rollouts: the SFT distribution heavily anchors the per-turn structural shape, so RL's temperature sampling does not break parseability.
+
+Format fragility becomes a real obstacle when you scale the same model size to **parallel, multi-tool-call-in-one-turn** dispatch — the structural surface area grows with the number of parallel calls, and standard GRPO collapses the SFT-learned tags. Our follow-up work [**ParaVT**](https://github.com/EvolvingLMMs-Lab/ParaVT) diagnoses this as the *Tool Prior Paradox* and addresses it with **PARA-GRPO** (Parseability-Anchored and Ratio-gAted GRPO): a targeted format reward applied only at the structural-token positions most prone to collapse, paired with a per-prompt frame-budget randomization that makes calling the tool earn measurable RL credit (taming the skip-tool shortcut).
 
 *Reference: [#16](https://github.com/EvolvingLMMs-Lab/LongVT/issues/16)*
 </details>
