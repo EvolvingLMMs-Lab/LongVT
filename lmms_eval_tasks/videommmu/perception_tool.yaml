@@ -3,5 +3,6 @@ task: "video_mmmu_perception_reasoning_tool"
 doc_to_text: !function utils.videommmu_doc_to_text_perception_comprehension
 doc_to_messages: !function utils.videommmu_tool_doc_to_messages_perception_comprehension
 include: _default_template_yaml
-process_results: !function utils.videommmu_process_results_perception_comprehensiongeneration_kwargs:
+process_results: !function utils.videommmu_process_results_perception_comprehension
+generation_kwargs:
   max_new_tokens: 49152
