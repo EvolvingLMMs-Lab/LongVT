@@ -558,15 +558,15 @@ All `*_tool.yaml` task configs in this repo now include this override. If you ar
 </details>
 
 <details>
-<summary><b>Q4: The 72B judge server fails with OOM or <code>max_model_len</code> errors.</b></summary>
+<summary><b>Q4: The 72B judge server (used for RL reward) fails with OOM or <code>max_model_len</code> errors.</b></summary>
 
-The default `max_model_len` for `Qwen2.5-72B-Instruct` is 131072 tokens, which requires significant GPU memory. Solutions:
+The default `max_model_len` for `Qwen2.5-72B-Instruct` (the judge we use for **RL reward computation**) is 131072 tokens, which requires significant GPU memory. Solutions:
 
 - **Reduce `max_model_len`**: For judge-only use (short inputs), `--max-model-len 8192` is sufficient and dramatically reduces memory.
 - **Increase `tensor-parallel-size`**: Distribute across more GPUs (e.g., `--tensor-parallel-size 8`).
-- **Use a smaller judge**: `Qwen2.5-72B-Instruct` is recommended for training; for MCQ evaluation where the judge only matches natural language to option text, smaller models may suffice.
+- **Use a smaller judge for RL**: if the 72B reward judge does not fit, a smaller instruct model can substitute for RL reward computation.
 
-Note: `--max-model-len` in the README's judge example is for RL training reward computation. For evaluation, follow `examples/eval/run_eval.sh` which uses different settings.
+Note: this 72B judge is for **RL training reward computation**. For **evaluation** we use a stronger judge (`Qwen/Qwen3-235B-A22B`; see Q5) with the settings in `examples/eval/run_eval.sh`.
 
 *Reference: [#9](https://github.com/EvolvingLMMs-Lab/LongVT/issues/9)*
 </details>
@@ -579,10 +579,10 @@ Our reported results use the following setup:
 | Parameter | Value |
 |-----------|-------|
 | Task (VideoMME) | `videomme_w_subtitle_reward_tool` |
-| Max frames | 768 |
+| Max frames | 768 (use 512 for `LongVT-7B-SFT`; the better of {512, 768} is reported) |
 | Hardware | 1 node × 8 A800-SXM4-80GB |
 | Parallelism | `num_processes=8` |
-| Judge model | `Qwen/Qwen3-235B-A22B` (or `Qwen/Qwen2.5-72B-Instruct`) |
+| Judge model | `Qwen/Qwen3-235B-A22B` (or a comparably strong judge such as `openai/gpt-oss-120b`) |
 | vLLM | 0.12.0 |
 | `IS_QWEN3_VL` | `False` |
 
